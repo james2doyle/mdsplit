@@ -223,16 +223,19 @@ publishes.
 ## Automated GitHub release
 
 `.github/workflows/release.yml` runs after the **CI** workflow succeeds for a
-`v*.*.*` tag push. It is deliberately separate from `ci.yml` so CI stays
-read-only and releases cannot be published from pull requests or `main` pushes.
-CI runs on pull requests, `main` pushes, and `v*.*.*` tag pushes. The same tag
-push also runs `.github/workflows/publish.yml`, which updates the
-[published Flatpak repository](#published-flatpak-repository).
+`v*.*.*` tag push. Its `workflow_run.branches` filter prevents no-op Release
+runs after ordinary `main` pushes. It is deliberately separate from `ci.yml`
+so CI stays read-only and releases cannot be published from pull requests or
+non-release branch pushes. CI runs on pull requests, `main` pushes, and
+`v*.*.*` tag pushes. The same tag push also runs `.github/workflows/publish.yml`,
+which updates the [published Flatpak repository](#published-flatpak-repository).
 
 The workflow:
 
-- skips anything that is not a `v*.*.*` tag push, including branches and pull
-  requests, before the build job starts;
+- triggers only for completed CI runs on `v*.*.*` tags, avoiding no-op runs
+  after `main` pushes;
+- independently verifies that the triggering ref is a release tag before any
+  build starts;
 - checks out the tagged commit and creates the same prefixed source archive and
   pinned release manifest shown above;
 - builds the Flatpak with `--buildtype=release`;
