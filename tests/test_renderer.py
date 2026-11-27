@@ -225,6 +225,31 @@ with tempfile.TemporaryDirectory() as tmp:
     ]
     assert code_labels, "code block missing"
     assert code_labels[0].get_text().strip() == 'print("native")'
+    wait_for(lambda: "<span" in (code_labels[0].get_label() or ""))
+    light_code_markup = code_labels[0].get_label() or ""
+    assert "<span" in light_code_markup
+
+    dark_code_labels = [
+        w
+        for w in labels(
+            MarkdownRenderer().render(
+                '```python\nprint("native")\n```', dark=True
+            )
+        )
+        if "md-code-body" in w.get_css_classes()
+    ]
+    wait_for(lambda: "<span" in (dark_code_labels[0].get_label() or ""))
+    assert (dark_code_labels[0].get_label() or "") != light_code_markup
+
+    unknown_labels = [
+        w
+        for w in labels(
+            MarkdownRenderer().render("```not-a-language\n<&>\n```")
+        )
+        if "md-code-body" in w.get_css_classes()
+    ]
+    assert unknown_labels[0].get_text() == "<&>"
+    assert "<span" not in (unknown_labels[0].get_label() or "")
 
     markups = "\n".join(
         label.get_label() or "" for label in labels(root)

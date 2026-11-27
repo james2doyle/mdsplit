@@ -40,6 +40,7 @@ configure_file(
 
 md_split_sources = [
   '__init__.py',
+  'code_highlight.py',
   'document.py',
   'editing.py',
   'exporting.py',
@@ -105,6 +106,8 @@ test_env = [
 test('Document model', python3, args: [files('../tests/test_document.py')],
   env: test_env)
 test('Markdown markup', python3, args: [files('../tests/test_markdown.py')],
+  env: test_env)
+test('Native code highlighting', python3, args: [files('../tests/test_code_highlight.py')],
   env: test_env)
 test('File I/O', python3, args: [files('../tests/test_fileio.py')],
   env: test_env)

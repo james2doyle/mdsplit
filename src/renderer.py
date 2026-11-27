@@ -41,6 +41,7 @@ if str(_VENDOR) not in sys.path:
 
 from markdown_it.token import Token
 
+from . import code_highlight
 from .image_policy import MAX_IMAGE_BYTES as _MAX_IMAGE_BYTES
 from .image_policy import MAX_IMAGE_PIXELS as _MAX_IMAGE_PIXELS
 from .markdown_parser import create_parser, has_valid_underline_inline
@@ -577,6 +578,14 @@ class MarkdownRenderer:
         body.set_margin_end(12)
         body.set_margin_top(8)
         body.set_margin_bottom(12)
+        if language:
+            code_highlight.highlight_label(
+                body,
+                code,
+                language,
+                dark=self._dark,
+                cancellable=self._render_cancellable,
+            )
         scroller.set_child(body)
         outer.append(scroller)
         return outer

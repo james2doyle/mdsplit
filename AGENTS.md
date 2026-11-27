@@ -163,7 +163,8 @@ settings.set_string('view-mode', 'source')
 [Edit] src/editing.py (surround/link completion/formatting/search),
   src/formatting.py (Markdown source normalization and diff summaries),
   src/links.py (source link detection and resolution)
-[Preview] src/renderer.py (tokens -> widgets), src/markdown_view.py (scroll/theme),
+[Preview] src/renderer.py (tokens -> widgets), src/code_highlight.py
+  (native code-block highlighting), src/markdown_view.py (scroll/theme),
   src/preview_vim.py (Vim navigation/search for the preview),
   src/markdown_parser.py (shared GFM parser)
 [Export] src/exporting.py (standalone HTML and styled PDF),
@@ -172,9 +173,9 @@ settings.set_string('view-mode', 'source')
 [Data] data/*.gschema.xml, data/*.desktop.in, data/*.metainfo.xml.in,
   data/icons/hicolor/*/apps/*.svg
 [Vendor] src/vendor/markdown_it, mdit_py_plugins, mdurl, LICENSES
-[Tests] tests/test_document.py, test_markdown.py, test_fileio.py,
-  test_editing.py, test_links.py, test_lists.py, test_export.py, test_logging.py,
-  test_filechanges.py, test_session.py, test_recovery.py, test_spellcheck.py,
+[Tests] tests/test_document.py, test_markdown.py, test_code_highlight.py,
+  test_fileio.py, test_editing.py, test_links.py, test_lists.py, test_export.py,
+  test_logging.py, test_filechanges.py, test_session.py, test_recovery.py, test_spellcheck.py,
   test_formatting.py, test_resources.py, test_preview_vim.py,
   test_startup.py (headless);
   test_renderer.py, test_window.py, test_lifecycle.py, test_preferences.py,
