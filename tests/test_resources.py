@@ -28,6 +28,8 @@ assert len(demo) > 200
 assert "Auto-pair delimiters" in demo
 assert "Ctrl+Shift+D" in demo
 assert "Go to Line" in demo
+assert "Ctrl+K" in demo
+assert "Ctrl+Shift+V" in demo
 assert "Ctrl+Shift+X / Ctrl+D" in demo
 
 preferences = contents(
@@ -44,6 +46,9 @@ assert "app.go-to-line" in window
 assert "app.move-lines-up" in window
 assert "app.duplicate-line" in window
 assert "app.toggle-task" in window
+assert "app.insert-link" in window
+assert "app.insert-image" in window
+assert "app.paste-image" in window
 
 assert contents("/io/github/james2doyle/MdSplit/style.css")
 

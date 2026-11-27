@@ -17,6 +17,8 @@ checklist, not a certification or a completed audit.
   editor. Alt+Up/Down moves selected lines; Ctrl+Shift+D duplicates the line or
   selection. Tab and Shift+Tab indent and outdent list items; Ctrl+Shift+X or
   Ctrl+D toggles the current task marker. All edits are single undo steps.
+- `Ctrl+K` inserts a link with the selection as its label. The main menu offers
+  image-file insertion, and `Ctrl+Shift+V` inserts clipboard image data.
 - `Ctrl+Shift+R` formats the selection or the whole document. Large changes
   open a dialog with a diff preview; Cancel leaves the source untouched.
 - `Ctrl+,` opens Preferences; `Ctrl+?` opens the shortcuts dialog.

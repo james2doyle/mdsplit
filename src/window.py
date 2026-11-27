@@ -31,6 +31,7 @@ from . import (
     editing,
     filechanges,
     fileio,
+    image_insert,
     launcher as launcher_mod,
     links,
     preview_vim,
@@ -40,7 +41,8 @@ from . import (
 )
 from .document import Document, text_statistics
 from .markdown_view import MarkdownView
-from .paths import ensure_file_extension, resolve_link
+from .image_policy import ImageTooLargeError, ImageValidationError
+from .paths import ensure_file_extension, markdown_image_path, resolve_link
 
 if TYPE_CHECKING:
     from . import formatting
@@ -262,6 +264,12 @@ class MdSplitWindow(Adw.ApplicationWindow):
         )
         self.editor_view.add_controller(motion)
         self._link_motion = motion
+        drop_target = Gtk.DropTarget.new(Gdk.FileList, Gdk.DragAction.COPY)
+        self._signal_handlers.append(
+            (drop_target, drop_target.connect("drop", self._on_image_drop))
+        )
+        self.editor_view.add_controller(drop_target)
+        self._image_drop_target = drop_target
         modifier = Gtk.EventControllerKey.new()
         modifier.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)
         self._signal_handlers.append(
@@ -1375,6 +1383,144 @@ class MdSplitWindow(Adw.ApplicationWindow):
         edit = editing.toggle_task(self.get_text(), insert.get_offset())
         if edit is not None:
             self._apply_text_edit(edit)
+
+    def insert_link(self) -> None:
+        start, end = self._selection_or_cursor_offsets()
+        self._apply_text_edit(editing.insert_link(self.get_text(), start, end))
+
+    def show_image_picker(self) -> None:
+        dialog = Gtk.FileDialog()
+        dialog.set_title(_("Insert Image"))
+        dialog.set_accept_label(_("Insert"))
+        image_filter = Gtk.FileFilter()
+        image_filter.set_name(_("Images"))
+        image_filter.add_pixbuf_formats()
+        filters = Gio.ListStore.new(Gtk.FileFilter)
+        filters.append(image_filter)
+        dialog.set_filters(filters)
+        dialog.set_default_filter(image_filter)
+        folder = self._initial_folder()
+        if folder is not None:
+            dialog.set_initial_folder(folder)
+        self._file_dialog = dialog
+        dialog.open(self, None, self._on_image_picked)
+
+    def _on_image_picked(self, dialog: Gtk.FileDialog, result) -> None:
+        try:
+            file = dialog.open_finish(result)
+        except GLib.Error as error:
+            if not self._is_dismissed(error):
+                self._show_error(_("Could not open image"), error.message)
+            return
+        if file is not None:
+            self.insert_image_file(file)
+
+    def _image_context(self):
+        start, end = self._selection_or_cursor_offsets()
+        return (
+            self._document_epoch,
+            self._document.revision,
+            start,
+            end,
+            self._document.directory,
+        )
+
+    def insert_image_file(self, file: Gio.File) -> None:
+        path = file.get_path()
+        if path is None:
+            self._show_error(
+                _("Could not insert image"), _("Choose a local image file.")
+            )
+            return
+        context = self._image_context()
+        image_insert.prepare_file_image_async(
+            Path(path),
+            context[4],
+            lambda prepared, error: self._finish_image_insert(
+                context, prepared, error
+            ),
+        )
+
+    def paste_image(self) -> None:
+        context = self._image_context()
+        clipboard = self.get_clipboard()
+        clipboard.read_texture_async(
+            None, self._on_clipboard_texture, context
+        )
+
+    def _on_clipboard_texture(self, clipboard, result, context) -> None:
+        if self._destroyed or context[0] != self._document_epoch:
+            return
+        try:
+            texture = clipboard.read_texture_finish(result)
+        except GLib.Error as error:
+            self._show_image_error(error, clipboard=True)
+            return
+        if texture is None:
+            self._show_image_error(
+                ImageValidationError(), clipboard=True
+            )
+            return
+        image_insert.prepare_clipboard_image_async(
+            texture,
+            context[4],
+            lambda prepared, error: self._finish_image_insert(
+                context, prepared, error, clipboard=True
+            ),
+        )
+
+    def _finish_image_insert(
+        self,
+        context,
+        prepared: Path | None,
+        error: Exception | None,
+        *,
+        clipboard: bool = False,
+    ) -> None:
+        if self._destroyed or context[0] != self._document_epoch:
+            return
+        if error is not None:
+            self._show_image_error(error, clipboard=clipboard)
+            return
+        if context[1] != self._document.revision:
+            self._show_toast(_("Document changed; image was not inserted"))
+            return
+        if prepared is None:
+            self._show_image_error(
+                ImageValidationError(), clipboard=clipboard
+            )
+            return
+        _epoch, _revision, start, end, directory = context
+        destination = markdown_image_path(prepared, directory)
+        self._apply_text_edit(
+            editing.insert_image(self.get_text(), start, end, destination)
+        )
+
+    def _show_image_error(self, error: Exception, *, clipboard: bool) -> None:
+        if isinstance(error, ImageTooLargeError):
+            message = _(
+                "Images must be at most 10 MiB and 20 megapixels."
+            )
+        elif clipboard:
+            message = _("Clipboard does not contain a supported image.")
+        elif isinstance(error, ImageValidationError):
+            message = _("The selected file is not a supported image.")
+        else:
+            message = str(error)
+        self._show_error(_("Could not insert image"), message)
+
+    def _on_image_drop(self, _target, value, x: float, y: float) -> bool:
+        try:
+            files = value.get_boxed().get_files()
+        except (AttributeError, TypeError):
+            return False
+        if not files:
+            return False
+        offset = self._editor_offset_at(x, y)
+        if offset is not None:
+            self._buffer.place_cursor(self._buffer.get_iter_at_offset(offset))
+        self.insert_image_file(files[0])
+        return True
 
     def show_go_to_line(self) -> None:
         if self._go_to_line_dialog is not None:

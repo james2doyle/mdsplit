@@ -286,6 +286,39 @@ def complete_link(text: str, cursor: int) -> TextEdit | None:
     )
 
 
+def _markdown_label(value: str) -> str:
+    return value.replace("\\", "\\\\").replace("[", "\\[").replace("]", "\\]")
+
+
+def insert_link(text: str, start: int, end: int) -> TextEdit:
+    """Insert an empty link, using any selection as its label."""
+    start, end = sorted((start, end))
+    label = _markdown_label(text[start:end])
+    cursor = start + 1 if start == end else start + len(label) + 3
+    return TextEdit(
+        start=start,
+        end=end,
+        replacement=f"[{label}]()",
+        selection_start=cursor,
+        selection_end=cursor,
+    )
+
+
+def insert_image(text: str, start: int, end: int, destination: str) -> TextEdit:
+    """Insert an image with a prepared destination and selection as alt text."""
+    start, end = sorted((start, end))
+    label = _markdown_label(text[start:end])
+    replacement = f"![{label}]({destination})"
+    cursor = start + len(replacement)
+    return TextEdit(
+        start=start,
+        end=end,
+        replacement=replacement,
+        selection_start=cursor,
+        selection_end=cursor,
+    )
+
+
 def format_inline(
     text: str, start: int, end: int, opening: str, closing: str
 ) -> TextEdit:

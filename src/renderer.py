@@ -41,6 +41,10 @@ if str(_VENDOR) not in sys.path:
 
 from markdown_it.token import Token
 
+from .image_policy import (
+    MAX_IMAGE_BYTES as _MAX_IMAGE_BYTES,
+    MAX_IMAGE_PIXELS as _MAX_IMAGE_PIXELS,
+)
 from .markdown_parser import create_parser, has_valid_underline_inline
 from .paths import contained_file, document_root, resolve_link
 
@@ -56,8 +60,6 @@ _HEADING_CLASSES = {
 }
 
 _ANCHOR_TAG = re.compile(r"<(/?)a\b[^>]*>")
-_MAX_IMAGE_BYTES = 10 * 1024 * 1024
-_MAX_IMAGE_PIXELS = 20_000_000
 _MAX_REMOTE_IMAGES = 32
 _MAX_LOCAL_IMAGES = 64
 _MAX_CACHED_IMAGES = 32

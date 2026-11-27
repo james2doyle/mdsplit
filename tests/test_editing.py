@@ -17,6 +17,8 @@ from src.editing import (
     duplicate_line_or_selection,
     format_code,
     format_inline,
+    insert_image,
+    insert_link,
     move_lines,
     parse_line_target,
     replace_all_text,
@@ -107,6 +109,27 @@ edit = complete_link("abc []", 5)
 assert edit is not None
 assert apply("abc []", edit) == "abc []()"
 assert (edit.selection_start, edit.selection_end) == (7, 7)
+
+# Link insertion focuses the empty label or the URL after a selected label.
+edit = insert_link("", 0, 0)
+assert apply("", edit) == "[]()"
+assert (edit.selection_start, edit.selection_end) == (1, 1)
+edit = insert_link("hello", 1, 4)
+assert apply("hello", edit) == "h[ell]()o"
+assert (edit.selection_start, edit.selection_end) == (7, 7)
+edit = insert_link("a [label]", 0, 9)
+assert apply("a [label]", edit) == r"[a \[label\]]()"
+assert edit.selection_start == len(edit.replacement) - 1
+
+# Image insertion uses a prepared destination and selection as escaped alt text.
+edit = insert_image("", 0, 0, "assets/a%20b.png")
+assert apply("", edit) == "![](assets/a%20b.png)"
+assert edit.selection_start == len(edit.replacement)
+edit = insert_image("diagram", 0, 7, "assets/chart.png")
+assert apply("diagram", edit) == "![diagram](assets/chart.png)"
+assert edit.selection_start == len(edit.replacement)
+edit = insert_image("a [diagram]", 0, 11, "assets/chart.png")
+assert apply("a [diagram]", edit) == r"![a \[diagram\]](assets/chart.png)"
 
 # Every opening delimiter inserts its partner and leaves the cursor inside.
 for opening, closing in AUTO_PAIRS.items():

@@ -105,6 +105,11 @@ class MdSplitApplication(Adw.Application):
         ):
             self.create_action(name, self.on_line_operation_action, shortcuts)
         self.create_action("go-to-line", self.on_go_to_line_action, ["<control>l"])
+        self.create_action("insert-link", self.on_insert_link_action, ["<control>k"])
+        self.create_action("insert-image", self.on_insert_image_action)
+        self.create_action(
+            "paste-image", self.on_paste_image_action, ["<control><shift>v"]
+        )
         self.create_action(
             "format-document",
             self.on_format_document_action,
@@ -502,6 +507,21 @@ class MdSplitApplication(Adw.Application):
         win = self.props.active_window
         if win is not None:
             win.show_go_to_line()
+
+    def on_insert_link_action(self, *_args):
+        win = self.props.active_window
+        if win is not None and win.editor_view.has_focus():
+            win.insert_link()
+
+    def on_insert_image_action(self, *_args):
+        win = self.props.active_window
+        if win is not None and win.editor_view.has_focus():
+            win.show_image_picker()
+
+    def on_paste_image_action(self, *_args):
+        win = self.props.active_window
+        if win is not None and win.editor_view.has_focus():
+            win.paste_image()
 
     def on_format_document_action(self, *_args):
         win = self.props.active_window

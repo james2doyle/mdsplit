@@ -11,7 +11,7 @@ these helpers.
 from __future__ import annotations
 
 from pathlib import Path
-from urllib.parse import unquote, urlparse
+from urllib.parse import quote, unquote, urlparse
 
 import gi
 
@@ -36,6 +36,17 @@ def document_root(
         if local:
             return Path(local).resolve()
     return None
+
+
+def markdown_image_path(path: Path, base_dir: Path | None) -> str:
+    """Return an encoded document-relative image path when it is contained."""
+    resolved = path.resolve()
+    root = base_dir.resolve() if base_dir is not None else None
+    if root is not None and resolved.is_relative_to(root):
+        value = resolved.relative_to(root).as_posix()
+    else:
+        value = resolved.as_posix()
+    return quote(value, safe="/")
 
 
 def ensure_file_extension(path: Path, extension: str) -> Path:

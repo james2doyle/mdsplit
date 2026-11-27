@@ -23,7 +23,8 @@ import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("Gdk", "4.0")
 gi.require_version("Adw", "1")
-from gi.repository import Adw, Gdk, Gio, GLib, Gtk
+gi.require_version("GObject", "2.0")
+from gi.repository import Adw, Gdk, Gio, GLib, GObject, Gtk
 
 if not Gtk.init_check() or Gdk.Display.get_default() is None:
     print("SKIP: no display available")
@@ -817,6 +818,181 @@ window.editor_view.has_focus = lambda: False
 line_app.lookup_action("duplicate-line").activate()
 assert window.get_text() == "one\ntwo"
 window.editor_view.has_focus = editor_has_focus
+window._force_close = True
+window.destroy()
+while GLib.MainContext.default().iteration(False):
+    pass
+
+# Link and image authoring actions use native pickers and async preparation.
+from unittest import mock
+import struct
+import zlib
+
+
+def make_png(width=2, height=2):
+    def chunk(kind, data):
+        return (
+            struct.pack(">I", len(data))
+            + kind
+            + data
+            + struct.pack(">I", zlib.crc32(kind + data) & 0xFFFFFFFF)
+        )
+
+    header = struct.pack(">IIBBBBB", width, height, 8, 6, 0, 0, 0)
+    raw = b"".join(b"\x00" + b"\xff\x00\x00\xff" * width for _ in range(height))
+    return (
+        b"\x89PNG\r\n\x1a\n"
+        + chunk(b"IHDR", header)
+        + chunk(b"IDAT", zlib.compress(raw))
+        + chunk(b"IEND", b"")
+    )
+
+
+window = MdSplitWindow(application=line_app)
+window.set_view_mode("both", persist=False)
+window.present()
+while GLib.MainContext.default().iteration(False):
+    pass
+assert line_app.props.active_window is window
+window.editor_view.has_focus = lambda: True
+window.set_text("")
+line_app.lookup_action("insert-link").activate()
+assert window.get_text() == "[]()"
+insert = window._buffer.get_iter_at_mark(window._buffer.get_insert())
+assert insert.get_offset() == 1
+window._buffer.undo()
+assert window.get_text() == ""
+window.set_text("hello")
+window._buffer.select_range(
+    window._buffer.get_iter_at_offset(1), window._buffer.get_iter_at_offset(4)
+)
+line_app.lookup_action("insert-link").activate()
+assert window.get_text() == "h[ell]()o"
+insert = window._buffer.get_iter_at_mark(window._buffer.get_insert())
+assert insert.get_offset() == 7
+
+with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as other:
+    root = Path(directory)
+    local = root / "local image.png"
+    local.write_bytes(make_png())
+    external = Path(other) / "external.png"
+    external.write_bytes(make_png())
+    window._document.file = Gio.File.new_for_path(str(root / "notes.md"))
+
+    # The picker is image-filtered and forwards the selected local file without
+    # opening a real system dialog during the test.
+    with mock.patch.object(Gtk.FileDialog, "open", autospec=True) as picker:
+        window.show_image_picker()
+        assert picker.call_count == 1
+    dialog = window._file_dialog
+    assert dialog.get_title() == "Insert Image"
+    assert dialog.get_default_filter() is not None
+    original_insert_image_file = window.insert_image_file
+    picked = []
+    window.insert_image_file = picked.append
+    fake_dialog = mock.Mock()
+    fake_dialog.open_finish.return_value = Gio.File.new_for_path(str(local))
+    window._on_image_picked(fake_dialog, None)
+    assert [file.get_path() for file in picked] == [str(local)]
+
+    # A contained file is referenced relatively and resolves in the preview.
+    from src import image_insert
+
+    window.set_text("Diagram")
+    window._buffer.select_range(
+        window._buffer.get_start_iter(), window._buffer.get_end_iter()
+    )
+    window.insert_image_file = original_insert_image_file
+    window.insert_image_file(Gio.File.new_for_path(str(local)))
+    wait_until(lambda: "![Diagram]" in window.get_text())
+    assert window.get_text() == "![Diagram](local%20image.png)"
+    window.flush_preview()
+    resolved_preview = window.preview.renderer._resolve_image("local%20image.png")
+    assert resolved_preview == ("file", local.resolve()), (
+        resolved_preview,
+        window.preview.renderer._base_dir,
+        window.preview.renderer._base_file,
+        local.resolve(),
+    )
+
+    # File drops use the same insertion path and reject unsupported values.
+    dropped = []
+    window.insert_image_file = dropped.append
+    external_file = Gio.File.new_for_path(str(external))
+
+    value = GObject.Value()
+    value.init(Gdk.FileList)
+    value.set_boxed(Gdk.FileList.new_from_array([external_file]))
+    assert window._on_image_drop(None, value, 0, 0)
+    assert [file.get_path() for file in dropped] == [str(external)]
+    assert not window._on_image_drop(None, object(), 0, 0)
+    window.insert_image_file = original_insert_image_file
+
+    # Clipboard textures are encoded on a worker and saved under assets/.
+    texture = Gdk.Texture.new_from_bytes(GLib.Bytes.new(make_png()))
+
+    class FakeClipboard:
+        def __init__(self, result=None, error=None):
+            self.result = result
+            self.error = error
+
+        def read_texture_async(self, _cancellable, callback, context):
+            callback(self, None, context)
+
+        def read_texture_finish(self, _result):
+            if self.error is not None:
+                raise self.error
+            return self.result
+
+    clipboard = FakeClipboard(texture)
+    window.get_clipboard = lambda: clipboard
+    prepared_paths = []
+    original_prepare = image_insert.prepare_clipboard_image_async
+
+    def record_prepare(texture_value, document_dir, callback):
+        def record(path, error):
+            if path is not None:
+                prepared_paths.append(path)
+            callback(path, error)
+
+        return original_prepare(texture_value, document_dir, record)
+
+    image_insert.prepare_clipboard_image_async = record_prepare
+    try:
+        window.set_text("")
+        window._buffer.place_cursor(window._buffer.get_start_iter())
+        window.paste_image()
+        wait_until(lambda: "assets/clipboard-" in window.get_text())
+        assert window.get_text().startswith("![](assets/clipboard-")
+        assert prepared_paths[-1].parent == root / "assets"
+        assert prepared_paths[-1].read_bytes().startswith(b"\x89PNG")
+
+        # Untitled documents fall back to an absolute temporary image path.
+        window._document.file = None
+        window.set_text("")
+        window.paste_image()
+        wait_until(lambda: "md-split-clipboard-" in window.get_text())
+        temporary_image = prepared_paths[-1]
+        assert temporary_image.is_absolute()
+        assert temporary_image.parent.name.startswith("md-split-clipboard-")
+        import shutil
+
+        shutil.rmtree(temporary_image.parent)
+
+        # Unsupported clipboard data reports an error without changing text.
+        window.set_text("unchanged")
+        before = window.get_text()
+        clipboard.error = GLib.Error.new_literal(
+            Gio.io_error_quark(), "no image", Gio.IOErrorEnum.NOT_SUPPORTED
+        )
+        window.paste_image()
+        assert window.get_text() == before
+        assert window._error_dialog is not None
+        assert "Clipboard does not contain" in window._error_dialog.get_body()
+        window._error_dialog = None
+    finally:
+        image_insert.prepare_clipboard_image_async = original_prepare
+
 window._force_close = True
 window.destroy()
 while GLib.MainContext.default().iteration(False):

@@ -13,6 +13,7 @@ A native GNOME Markdown editor with a live **GitHub-Flavored Markdown** preview.
 - [x] GFM tables, task lists, alerts, autolinks and footnotes
 - [x] Synchronized scrolling and three view modes
 - [x] Find, replace and Format Document
+- [x] Link insertion plus picker, drop and clipboard images
 - [x] Auto-pairing, list indentation, task toggles, line moves and Go to Line
 - [x] Optional Vim keybindings for the editor and preview
 - [x] Autosave recovery, session restore and external-change warnings
@@ -59,6 +60,11 @@ Inline code such as `Ctrl+Shift+R` formats the document or selection.
 
 ## Editing helpers
 
+**Ctrl+K** inserts a link and uses the selection as its label. Insert images
+from the menu or a file drop, or press **Ctrl+Shift+V** for clipboard image
+data. Images inside the document directory use relative paths; copied and
+clipboard images are saved under `assets/`.
+
 Opening brackets, quotes, backticks, `*`, `_`, and `~` insert a matching
 closing delimiter in prose. Typing the closing delimiter steps over it, and
 Backspace between an empty pair removes both characters. Pairing stays out of
@@ -85,6 +91,8 @@ the document, and returns focus to the editor. Each edit is one undo step.
 | Ctrl+F | Find |
 | Ctrl+H | Replace |
 | Ctrl+L | Go to line |
+| Ctrl+K | Insert Markdown link |
+| Ctrl+Shift+V | Insert image from clipboard |
 | Alt+Up / Alt+Down | Move current or selected lines |
 | Ctrl+Shift+D | Duplicate current line or selection |
 | Tab / Shift+Tab | Indent / outdent current or selected list items |

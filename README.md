@@ -81,6 +81,8 @@ flatpak update --user io.github.james2doyle.MdSplit
 | Ctrl+Shift+G | Find previous |
 | Ctrl+H | Replace |
 | Ctrl+L | Go to line |
+| Ctrl+K | Insert Markdown link |
+| Ctrl+Shift+V | Insert image from clipboard |
 | Alt+Up / Alt+Down | Move current or selected lines |
 | Ctrl+Shift+D | Duplicate current line or selection |
 | Tab / Shift+Tab | Indent / outdent current or selected list items |

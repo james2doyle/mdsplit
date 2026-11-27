@@ -292,12 +292,16 @@ for action, accelerators in {
     "duplicate-line": ("<shift><control>d",),
     "toggle-task": ("<shift><control>x", "<control>d"),
     "go-to-line": ("<control>l",),
+    "insert-link": ("<control>k",),
+    "paste-image": ("<shift><control>v",),
 }.items():
     assert app.lookup_action(action) is not None
     actual = [
         value.lower() for value in app.get_accels_for_action(f"app.{action}")
     ]
     assert actual == list(accelerators), (action, actual)
+assert app.lookup_action("insert-image") is not None
+assert app.get_accels_for_action("app.insert-image") == []
 assert app.lookup_action("open-recent") is not None
 assert app.lookup_action("clear-recent") is not None
 

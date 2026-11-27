@@ -46,6 +46,8 @@ md_split_sources = [
   'filechanges.py',
   'fileio.py',
   'formatting.py',
+  'image_insert.py',
+  'image_policy.py',
   'launcher.py',
   'links.py',
   'logging_utils.py',
@@ -143,6 +145,8 @@ test('Packaged resources', python3, args: [files('../tests/test_resources.py')],
 test('Lazy startup imports', python3, args: [files('../tests/test_startup.py')],
   env: test_env)
 test('Remote image policy', python3, args: [files('../tests/test_images.py')],
+  env: test_env)
+test('Image insertion helpers', python3, args: [files('../tests/test_image_insert.py')],
   env: test_env)
 test('Editing helpers', python3, args: [files('../tests/test_editing.py')],
   env: test_env)

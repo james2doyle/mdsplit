@@ -150,4 +150,20 @@ with tempfile.TemporaryDirectory() as directory:
     assert paths.resolve_link("//example.com/path", root, None) is None
     assert paths.resolve_link("", root, None) is None
 
+    image = root / "notes" / "a b#(diagram).png"
+    assert paths.markdown_image_path(image, root) == (
+        "notes/a%20b%23%28diagram%29.png"
+    )
+    outside = root.parent / "outside image.png"
+    assert paths.markdown_image_path(outside, root) == (
+        outside.as_posix().replace(" ", "%20")
+    )
+    assert paths.markdown_image_path(image, None) == (
+        image.as_posix()
+        .replace(" ", "%20")
+        .replace("#", "%23")
+        .replace("(", "%28")
+        .replace(")", "%29")
+    )
+
 print("ok: link helpers")
