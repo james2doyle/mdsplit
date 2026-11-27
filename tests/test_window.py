@@ -478,6 +478,98 @@ window._settings.set_boolean("autocomplete-links", False)
 window.set_text("abc [")
 window._buffer.place_cursor(window._buffer.get_end_iter())
 assert not window._on_key_pressed(None, Gdk.KEY_bracketright, 0, Gdk.ModifierType(0))
+window._settings.set_boolean("autocomplete-links", True)
+window.destroy()
+
+# Auto-pairing inserts every delimiter in prose and list content as one undo step.
+window = MdSplitWindow()
+window.set_view_mode("source", persist=False)
+for keyval, opening, closing in (
+    (Gdk.KEY_parenleft, "(", ")"),
+    (Gdk.KEY_bracketleft, "[", "]"),
+    (Gdk.KEY_braceleft, "{", "}"),
+    (Gdk.KEY_quotedbl, '"', '"'),
+    (Gdk.KEY_apostrophe, "'", "'"),
+    (Gdk.KEY_grave, "`", "`"),
+    (Gdk.KEY_asterisk, "*", "*"),
+    (Gdk.KEY_underscore, "_", "_"),
+    (Gdk.KEY_asciitilde, "~", "~"),
+):
+    original = "- item "
+    window.set_text(original)
+    window._buffer.place_cursor(window._buffer.get_end_iter())
+    assert window._on_key_pressed(None, keyval, 0, Gdk.ModifierType(0))
+    assert window.get_text() == original + opening + closing
+    insert = window._buffer.get_iter_at_mark(window._buffer.get_insert())
+    assert insert.get_offset() == len(original) + 1
+    window._buffer.undo()
+    assert window.get_text() == original, (opening, window.get_text())
+
+# Closing over an existing delimiter only moves the cursor. Undo still reverts
+# the insertion in one step because cursor motion does not create an undo action.
+window.set_text("abc ")
+window._buffer.place_cursor(window._buffer.get_end_iter())
+assert window._on_key_pressed(None, Gdk.KEY_parenleft, 0, 0)
+assert window._on_key_pressed(None, Gdk.KEY_parenright, 0, 0)
+assert window.get_text() == "abc ()"
+insert = window._buffer.get_iter_at_mark(window._buffer.get_insert())
+assert insert.get_offset() == len("abc ()")
+window._buffer.undo()
+assert window.get_text() == "abc "
+
+# Backspace removes an empty pair as one undoable edit.
+window.set_text("abc ")
+window._buffer.place_cursor(window._buffer.get_end_iter())
+assert window._on_key_pressed(None, Gdk.KEY_bracketleft, 0, 0)
+assert window._on_key_pressed(None, Gdk.KEY_BackSpace, 0, 0)
+assert window.get_text() == "abc "
+window._buffer.undo()
+assert window.get_text() == "abc []"
+
+# Auto-paired brackets still compose with empty-link completion.
+window.set_text("abc ")
+window._buffer.place_cursor(window._buffer.get_end_iter())
+assert window._on_key_pressed(None, Gdk.KEY_bracketleft, 0, 0)
+assert window.get_text() == "abc []"
+assert window._on_key_pressed(None, Gdk.KEY_bracketright, 0, 0)
+assert window.get_text() == "abc []()"
+insert = window._buffer.get_iter_at_mark(window._buffer.get_insert())
+assert insert.get_offset() == 7
+
+# Word characters, code contexts, shortcuts, and IME preedit bypass pairing.
+for text, cursor in (
+    ("word", 0),
+    ("`code`", 3),
+    ("```\ncode\n```", 5),
+    ("~~~\ncode\n~~~", 5),
+):
+    window.set_text(text)
+    window._buffer.place_cursor(window._buffer.get_iter_at_offset(cursor))
+    assert not window._on_key_pressed(None, Gdk.KEY_parenleft, 0, 0)
+    assert window.get_text() == text
+window.set_text("abc ")
+window._buffer.place_cursor(window._buffer.get_end_iter())
+assert not window._on_key_pressed(
+    None, Gdk.KEY_parenleft, 0, Gdk.ModifierType.CONTROL_MASK
+)
+window.editor_view.emit("preedit-changed", "´")
+assert not window._on_key_pressed(None, Gdk.KEY_parenleft, 0, 0)
+assert window.get_text() == "abc "
+window.editor_view.emit("preedit-changed", "")
+assert window._on_key_pressed(None, Gdk.KEY_parenleft, 0, 0)
+assert window.get_text() == "abc ()"
+
+# Disabling the preference leaves opening, closing, and Backspace keys alone.
+window._settings.set_boolean("auto-pairing", False)
+window.set_text("")
+assert not window._on_key_pressed(None, Gdk.KEY_parenleft, 0, 0)
+assert window.get_text() == ""
+window.set_text("()")
+window._buffer.place_cursor(window._buffer.get_iter_at_offset(1))
+assert not window._on_key_pressed(None, Gdk.KEY_parenright, 0, 0)
+assert not window._on_key_pressed(None, Gdk.KEY_BackSpace, 0, 0)
+assert window.get_text() == "()"
+window._settings.set_boolean("auto-pairing", True)
 window.destroy()
 
 # Cursor-only keys must not copy the whole buffer.
@@ -494,7 +586,14 @@ def counting_get_text():
 
 
 window.get_text = counting_get_text
-for keyval in (Gdk.KEY_Left, Gdk.KEY_Right, Gdk.KEY_Home, Gdk.KEY_End):
+for keyval in (
+    Gdk.KEY_Left,
+    Gdk.KEY_Right,
+    Gdk.KEY_Up,
+    Gdk.KEY_Down,
+    Gdk.KEY_Home,
+    Gdk.KEY_End,
+):
     assert not window._on_key_pressed(
         None, keyval, 0, Gdk.ModifierType(0)
     )
@@ -515,6 +614,9 @@ for keyval, expected in (
     (Gdk.KEY_grave, "h`ell`o"),
     (Gdk.KEY_quotedbl, 'h"ell"o'),
     (Gdk.KEY_apostrophe, "h'ell'o"),
+    (Gdk.KEY_asterisk, "h*ell*o"),
+    (Gdk.KEY_underscore, "h_ell_o"),
+    (Gdk.KEY_asciitilde, "h~ell~o"),
 ):
     window.set_text("hello")
     window._buffer.select_range(

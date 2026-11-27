@@ -25,11 +25,13 @@ def contents(path: str) -> bytes:
 demo = contents("/io/github/james2doyle/MdSplit/demo.md").decode("utf-8")
 assert demo.startswith("# MD Split"), demo[:40]
 assert len(demo) > 200
+assert "Auto-pair delimiters" in demo
 
 preferences = contents(
     "/io/github/james2doyle/MdSplit/preferences-dialog.ui"
 ).decode("utf-8")
 assert "switch_vim_mode" in preferences
+assert "switch_auto_pairing" in preferences
 assert "close_button" not in preferences
 
 window = contents("/io/github/james2doyle/MdSplit/window.ui").decode("utf-8")

@@ -195,6 +195,7 @@ class MdSplitWindow(Adw.ApplicationWindow):
         self._vim_attached = False
         self._vim_mode_handler = 0
         self._editor_ctrl_w = False
+        self._editor_preedit = ""
         self._preview_vim: preview_vim.PreviewVim | None = None
         # Editor "/" search mirrored for the status-bar match counter.
         self._vim_search: tuple[str, str] | None = None
@@ -866,6 +867,12 @@ class MdSplitWindow(Adw.ApplicationWindow):
         self._signal_handlers.extend(
             [
                 (
+                    self.editor_view,
+                    self.editor_view.connect(
+                        "preedit-changed", self._on_editor_preedit_changed
+                    ),
+                ),
+                (
                     self._buffer,
                     self._buffer.connect("changed", self._on_buffer_changed),
                 ),
@@ -1194,6 +1201,9 @@ class MdSplitWindow(Adw.ApplicationWindow):
 
     # -- editor signals --------------------------------------------------
 
+    def _on_editor_preedit_changed(self, _view, preedit: str) -> None:
+        self._editor_preedit = preedit
+
     def _on_buffer_changed(self, *_args) -> None:
         self._link_hover_revision = -1
         if self._loading:
@@ -1236,9 +1246,11 @@ class MdSplitWindow(Adw.ApplicationWindow):
             | Gdk.ModifierType.ALT_MASK
             | Gdk.ModifierType.SUPER_MASK
         )
-        if modifiers & blocked:
+        if modifiers & blocked or self._editor_preedit:
             return False
 
+        codepoint = Gdk.keyval_to_unicode(keyval)
+        character = chr(codepoint) if codepoint else ""
         bounds = self._buffer.get_selection_bounds()
         if (
             not bounds
@@ -1252,8 +1264,6 @@ class MdSplitWindow(Adw.ApplicationWindow):
                 return True
         if bounds:
             start_iter, end_iter = bounds
-            codepoint = Gdk.keyval_to_unicode(keyval)
-            character = chr(codepoint) if codepoint else ""
             if character in editing.SURROUND_PAIRS:
                 edit = editing.surround_selection(
                     self.get_text(),
@@ -1266,6 +1276,16 @@ class MdSplitWindow(Adw.ApplicationWindow):
                     return True
             return False
 
+        auto_pairing = self._settings.get_boolean("auto-pairing")
+        if auto_pairing and keyval == Gdk.KEY_BackSpace:
+            insert = self._buffer.get_iter_at_mark(self._buffer.get_insert())
+            edit = editing.delete_empty_pair(
+                self.get_text(), insert.get_offset()
+            )
+            if edit is not None:
+                self._apply_text_edit(edit)
+                return True
+
         if (
             keyval == Gdk.KEY_bracketright
             and self._settings.get_boolean("autocomplete-links")
@@ -1274,6 +1294,21 @@ class MdSplitWindow(Adw.ApplicationWindow):
             edit = editing.complete_link(
                 self.get_text(), insert.get_offset()
             )
+            if edit is not None:
+                self._apply_text_edit(edit)
+                return True
+
+        if auto_pairing and character in editing.AUTO_PAIR_CHARACTERS:
+            text = self.get_text()
+            insert = self._buffer.get_iter_at_mark(self._buffer.get_insert())
+            cursor = insert.get_offset()
+            if editing.skip_closing_pair(text, cursor, character):
+                self._buffer.place_cursor(
+                    self._buffer.get_iter_at_offset(cursor + 1)
+                )
+                self.editor_view.scroll_mark_onscreen(self._buffer.get_insert())
+                return True
+            edit = editing.auto_pair(text, cursor, character)
             if edit is not None:
                 self._apply_text_edit(edit)
                 return True

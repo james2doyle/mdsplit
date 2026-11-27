@@ -12,21 +12,31 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+_AUTO_PAIR_ITEMS = (
+    ("(", ")"),
+    ("[", "]"),
+    ("{", "}"),
+    ('"', '"'),
+    ("'", "'"),
+    ("`", "`"),
+    ("*", "*"),
+    ("_", "_"),
+    ("~", "~"),
+)
+AUTO_PAIRS = dict(_AUTO_PAIR_ITEMS)
+AUTO_PAIR_CHARACTERS = frozenset(AUTO_PAIRS) | frozenset(AUTO_PAIRS.values())
+_CLOSING_DELIMITERS = frozenset(AUTO_PAIRS.values())
 SURROUND_PAIRS = {
-    "[": ("[", "]"),
-    "]": ("[", "]"),
-    "(": ("(", ")"),
-    ")": ("(", ")"),
-    "{": ("{", "}"),
-    "}": ("{", "}"),
-    "`": ("`", "`"),
-    '"': ('"', '"'),
-    "'": ("'", "'"),
-    "\u2018": ("\u2018", "\u2019"),
-    "\u2019": ("\u2018", "\u2019"),
-    "\u201c": ("\u201c", "\u201d"),
-    "\u201d": ("\u201c", "\u201d"),
+    character: pair for pair in _AUTO_PAIR_ITEMS for character in pair
 }
+SURROUND_PAIRS.update(
+    {
+        "\u2018": ("\u2018", "\u2019"),
+        "\u2019": ("\u2018", "\u2019"),
+        "\u201c": ("\u201c", "\u201d"),
+        "\u201d": ("\u201c", "\u201d"),
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -84,6 +94,161 @@ class TextEdit:
         return text[: self.start] + self.replacement + text[self.end :]
 
 
+_FENCE_OPEN = re.compile(r"^ {0,3}(`{3,}|~{3,})(.*)$")
+
+
+def _fenced_ranges(text: str) -> list[tuple[int, int]]:
+    """Return source ranges occupied by fenced blocks, including delimiters."""
+    ranges: list[tuple[int, int]] = []
+    fence: tuple[str, int] | None = None
+    fence_start = 0
+    line_start = 0
+    while line_start < len(text):
+        newline = text.find("\n", line_start)
+        line_end = len(text) if newline == -1 else newline
+        line = text[line_start:line_end]
+        if line.endswith("\r"):
+            line = line[:-1]
+        if fence is None:
+            match = _FENCE_OPEN.match(line)
+            if match is not None:
+                marker, info = match.groups()
+                if marker[0] != "`" or "`" not in info:
+                    fence = (marker[0], len(marker))
+                    fence_start = line_start
+        else:
+            character, length = fence
+            closing = re.match(
+                rf"^ {{0,3}}{re.escape(character)}{{{length},}}[ \t]*$",
+                line,
+            )
+            if closing is not None:
+                ranges.append((fence_start, line_end))
+                fence = None
+        if newline == -1:
+            break
+        line_start = newline + 1
+    if fence is not None:
+        ranges.append((fence_start, len(text)))
+    return ranges
+
+
+def _in_ranges(position: int, ranges: list[tuple[int, int]]) -> bool:
+    return any(start <= position <= end for start, end in ranges)
+
+
+def _backtick_runs(
+    text: str, cursor: int, fenced_ranges: list[tuple[int, int]]
+) -> list[tuple[int, int, bool]]:
+    """Find backtick runs, splitting the run under the cursor at that point."""
+    runs: list[tuple[int, int, bool]] = []
+    position = 0
+    fence_index = 0
+    while position < len(text):
+        while (
+            fence_index < len(fenced_ranges)
+            and position > fenced_ranges[fence_index][1]
+        ):
+            fence_index += 1
+        if fence_index < len(fenced_ranges):
+            fence_start, fence_end = fenced_ranges[fence_index]
+            if fence_start <= position <= fence_end:
+                position = fence_end + 1
+                continue
+        if text[position] != "`":
+            position += 1
+            continue
+        start = position
+        while position < len(text) and text[position] == "`":
+            position += 1
+        end = position
+        backslashes = 0
+        previous = start - 1
+        while previous >= 0 and text[previous] == "\\":
+            backslashes += 1
+            previous -= 1
+        escaped = backslashes % 2 == 1
+        if start < cursor < end:
+            runs.append((start, cursor, escaped))
+            runs.append((cursor, end, escaped))
+        else:
+            runs.append((start, end, escaped))
+    return runs
+
+
+def _in_code_context(text: str, cursor: int) -> bool:
+    """Return whether ``cursor`` is in a fenced block or inline code span."""
+    fenced_ranges = _fenced_ranges(text)
+    if _in_ranges(cursor, fenced_ranges):
+        return True
+    runs = _backtick_runs(text, cursor, fenced_ranges)
+    next_same: list[int | None] = [None] * len(runs)
+    next_by_length: dict[int, int] = {}
+    for index in range(len(runs) - 1, -1, -1):
+        start, end, _escaped = runs[index]
+        length = end - start
+        next_same[index] = next_by_length.get(length)
+        next_by_length[length] = index
+
+    index = 0
+    while index < len(runs):
+        start, end, escaped = runs[index]
+        if start > cursor:
+            break
+        closing_index = next_same[index]
+        if escaped or closing_index is None:
+            index += 1
+            continue
+        closing_start = runs[closing_index][0]
+        if end <= cursor <= closing_start:
+            return True
+        # Backtick runs inside a code span are literal, not nested delimiters.
+        index = closing_index + 1
+    return False
+
+
+def auto_pair(text: str, cursor: int, character: str) -> TextEdit | None:
+    """Insert a delimiter pair when the cursor context allows completion."""
+    closing = AUTO_PAIRS.get(character)
+    if closing is None or not 0 <= cursor <= len(text):
+        return None
+    next_character = text[cursor : cursor + 1]
+    if next_character and (next_character.isalnum() or next_character == "_"):
+        return None
+    if _in_code_context(text, cursor):
+        return None
+    return TextEdit(
+        start=cursor,
+        end=cursor,
+        replacement=character + closing,
+        selection_start=cursor + 1,
+        selection_end=cursor + 1,
+    )
+
+
+def skip_closing_pair(text: str, cursor: int, character: str) -> bool:
+    """Return whether typing a closing delimiter should only move the cursor."""
+    if character not in _CLOSING_DELIMITERS or not 0 <= cursor <= len(text):
+        return False
+    return text[cursor : cursor + 1] == character
+
+
+def delete_empty_pair(text: str, cursor: int) -> TextEdit | None:
+    """Delete both delimiters when Backspace is pressed inside an empty pair."""
+    if cursor <= 0 or cursor >= len(text):
+        return None
+    closing = AUTO_PAIRS.get(text[cursor - 1])
+    if closing is None or text[cursor] != closing:
+        return None
+    return TextEdit(
+        start=cursor - 1,
+        end=cursor + 1,
+        replacement="",
+        selection_start=cursor - 1,
+        selection_end=cursor - 1,
+    )
+
+
 def surround_selection(
     text: str, start: int, end: int, character: str
 ) -> TextEdit | None:
@@ -114,7 +279,7 @@ def complete_link(text: str, cursor: int) -> TextEdit | None:
         return None
     return TextEdit(
         start=cursor,
-        end=cursor,
+        end=cursor + (1 if text[cursor : cursor + 1] == "]" else 0),
         replacement="]()",
         selection_start=cursor + 2,
         selection_end=cursor + 2,

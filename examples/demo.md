@@ -13,6 +13,7 @@ A native GNOME Markdown editor with a live **GitHub-Flavored Markdown** preview.
 - [x] GFM tables, task lists, alerts, autolinks and footnotes
 - [x] Synchronized scrolling and three view modes
 - [x] Find, replace and Format Document
+- [x] Auto-pairing
 - [x] Optional Vim keybindings for the editor and preview
 - [x] Autosave recovery, session restore and external-change warnings
 - [x] Standalone HTML and styled PDF export
@@ -55,6 +56,14 @@ Inline code such as `Ctrl+Shift+R` formats the document or selection.
 3. Format the document with **Ctrl+Shift+R**.
 4. Enable **Vim keybindings** in Preferences, then try `j`/`k` and `/` here.
 5. Export HTML or a styled PDF from the main menu.
+
+## Editing helpers
+
+Opening brackets, quotes, backticks, `*`, `_`, and `~` insert a matching
+closing delimiter in prose. Typing the closing delimiter steps over it, and
+Backspace between an empty pair removes both characters. Pairing stays out of
+code spans and fenced blocks; you can turn it off with **Auto-pair delimiters**
+in Preferences.
 
 ## Keyboard shortcuts
 

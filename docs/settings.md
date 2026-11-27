@@ -18,6 +18,7 @@ Settings use the GSettings schema `io.github.james2doyle.MdSplit` with path
 | `load-demo-on-startup` | bool | `true` | Load bundled demo when opened without a file |
 | `sync-scroll` | bool | `true` | Keep editor and preview scroll positions aligned |
 | `autocomplete-links` | bool | `true` | Expand a typed `[]` to `[]()` |
+| `auto-pairing` | bool | `true` | Pair, skip, and delete matching editor delimiters |
 | `format-on-save` | bool | `true` | Normalize Markdown source before writing a file |
 | `last-folder` | string | `""` | Last file-chooser directory |
 | `restore-session` | bool | `true` | Reopen file windows from the last session |
@@ -37,7 +38,7 @@ Settings use the GSettings schema `io.github.james2doyle.MdSplit` with path
 
 - `view-mode` is written when the user picks a mode or cycles with F9.
 - `remote-images` is written by the menu action and preferences switch.
-- `sync-scroll`, `autocomplete-links`, `format-on-save`,
+- `sync-scroll`, `autocomplete-links`, `auto-pairing`, `format-on-save`,
   `load-demo-on-startup`, and `appearance` are bound in the preferences
   dialog.
 - `format-on-save` applies the same formatter as the manual Format Document

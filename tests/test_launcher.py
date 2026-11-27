@@ -1,4 +1,4 @@
-"""Headless tests for the local-.md instance launcher."""
+"""Headless tests for application and development process launchers."""
 
 import os
 import sys

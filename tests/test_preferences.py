@@ -87,6 +87,7 @@ assert len(close_buttons(dialog)) == 1
 assert app.settings.get_string("appearance") == "system"
 assert dialog.switch_sync_scroll.get_active()
 assert dialog.switch_autocomplete_links.get_active()
+assert dialog.switch_auto_pairing.get_active()
 assert dialog.switch_restore_session.get_active()
 assert dialog.switch_format_on_save.get_active()
 assert dialog.switch_autosave.get_active()
@@ -95,6 +96,9 @@ assert not dialog.switch_backups.get_active()
 assert dialog.spin_backup_retention.get_value() == 5
 assert dialog.spin_export_font_size.get_value() == 11
 
+dialog.switch_auto_pairing.set_active(False)
+assert app.settings.get_boolean("auto-pairing") is False
+dialog.switch_auto_pairing.set_active(True)
 dialog.switch_restore_session.set_active(False)
 assert app.settings.get_boolean("restore-session") is False
 dialog.switch_restore_session.set_active(True)

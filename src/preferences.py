@@ -36,6 +36,7 @@ class MdSplitPreferencesDialog(Adw.PreferencesDialog):
     combo_spell_language = Gtk.Template.Child("combo_spell_language")
     switch_sync_scroll = Gtk.Template.Child("switch_sync_scroll")
     switch_autocomplete_links = Gtk.Template.Child("switch_autocomplete_links")
+    switch_auto_pairing = Gtk.Template.Child("switch_auto_pairing")
     switch_format_on_save = Gtk.Template.Child("switch_format_on_save")
     switch_remote_images = Gtk.Template.Child("switch_remote_images")
     switch_vim_mode = Gtk.Template.Child("switch_vim_mode")
@@ -77,6 +78,7 @@ class MdSplitPreferencesDialog(Adw.PreferencesDialog):
             ("spell-check", self.switch_spell_check),
             ("sync-scroll", self.switch_sync_scroll),
             ("autocomplete-links", self.switch_autocomplete_links),
+            ("auto-pairing", self.switch_auto_pairing),
             ("format-on-save", self.switch_format_on_save),
             ("remote-images", self.switch_remote_images),
             ("vim-mode", self.switch_vim_mode),

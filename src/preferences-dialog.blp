@@ -77,6 +77,11 @@ template $MdSplitPreferencesDialog: Adw.PreferencesDialog {
     Adw.PreferencesGroup {
       title: _("Editor");
 
+      Adw.SwitchRow switch_auto_pairing {
+        title: _("Auto-pair delimiters");
+        subtitle: _("Insert and remove matching brackets, quotes, and Markdown markers while typing");
+      }
+
       Adw.SwitchRow switch_vim_mode {
         title: _("Vim keybindings");
         subtitle: _("Modal editing in the editor and Vim navigation in the preview");

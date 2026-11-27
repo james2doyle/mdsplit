@@ -53,6 +53,11 @@
 			<description>Turn a typed [] into []() and place the cursor inside the parentheses.</description>
 			<default>true</default>
 		</key>
+		<key name="auto-pairing" type="b">
+			<summary>Auto-pair editor delimiters</summary>
+			<description>Insert, skip, and delete matching brackets, quotes, and Markdown markers while typing.</description>
+			<default>true</default>
+		</key>
 		<key name="format-on-save" type="b">
 			<summary>Format Markdown on save</summary>
 			<description>Normalize headings, list spacing, block quotes, tables, blank lines and code fences before writing a file.</description>

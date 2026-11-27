@@ -59,6 +59,7 @@ assert app.settings.get_string("view-mode") == "both"
 assert app.settings.get_boolean("load-demo-on-startup") is True
 assert app.settings.get_boolean("sync-scroll") is True
 assert app.settings.get_boolean("autocomplete-links") is True
+assert app.settings.get_boolean("auto-pairing") is True
 assert app.settings.get_boolean("format-on-save") is True
 assert app.settings.get_boolean("restore-session") is True
 assert app.settings.get_boolean("autosave") is True
