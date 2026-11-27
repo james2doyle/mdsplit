@@ -286,17 +286,18 @@ assert "<control>" in format_accels[0], format_accels
 assert "<shift>" in format_accels[0], format_accels
 assert format_accels[0].endswith("r"), format_accels
 assert app.lookup_action("format-document") is not None
-for action, accelerator in {
-    "move-lines-up": "<alt>up",
-    "move-lines-down": "<alt>down",
-    "duplicate-line": "<shift><control>d",
-    "go-to-line": "<control>l",
+for action, accelerators in {
+    "move-lines-up": ("<alt>up",),
+    "move-lines-down": ("<alt>down",),
+    "duplicate-line": ("<shift><control>d",),
+    "toggle-task": ("<shift><control>x", "<control>d"),
+    "go-to-line": ("<control>l",),
 }.items():
     assert app.lookup_action(action) is not None
     actual = [
         value.lower() for value in app.get_accels_for_action(f"app.{action}")
     ]
-    assert actual == [accelerator], (action, actual)
+    assert actual == list(accelerators), (action, actual)
 assert app.lookup_action("open-recent") is not None
 assert app.lookup_action("clear-recent") is not None
 

@@ -97,12 +97,13 @@ class MdSplitApplication(Adw.Application):
             ["<control><shift>g"],
         )
         self.create_action("replace", self.on_replace_action, ["<control>h"])
-        for name, shortcut in (
-            ("move-lines-up", "<alt>Up"),
-            ("move-lines-down", "<alt>Down"),
-            ("duplicate-line", "<control><shift>d"),
+        for name, shortcuts in (
+            ("move-lines-up", ("<alt>Up",)),
+            ("move-lines-down", ("<alt>Down",)),
+            ("duplicate-line", ("<control><shift>d",)),
+            ("toggle-task", ("<control><shift>x", "<control>d")),
         ):
-            self.create_action(name, self.on_line_operation_action, [shortcut])
+            self.create_action(name, self.on_line_operation_action, shortcuts)
         self.create_action("go-to-line", self.on_go_to_line_action, ["<control>l"])
         self.create_action(
             "format-document",
@@ -492,6 +493,8 @@ class MdSplitApplication(Adw.Application):
         name = action.get_name()
         if name == "duplicate-line":
             win.duplicate_line_or_selection()
+        elif name == "toggle-task":
+            win.toggle_task()
         else:
             win.move_lines(-1 if name == "move-lines-up" else 1)
 

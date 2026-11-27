@@ -28,6 +28,7 @@ assert len(demo) > 200
 assert "Auto-pair delimiters" in demo
 assert "Ctrl+Shift+D" in demo
 assert "Go to Line" in demo
+assert "Ctrl+Shift+X / Ctrl+D" in demo
 
 preferences = contents(
     "/io/github/james2doyle/MdSplit/preferences-dialog.ui"
@@ -42,6 +43,7 @@ assert "toast_overlay" in window
 assert "app.go-to-line" in window
 assert "app.move-lines-up" in window
 assert "app.duplicate-line" in window
+assert "app.toggle-task" in window
 
 assert contents("/io/github/james2doyle/MdSplit/style.css")
 

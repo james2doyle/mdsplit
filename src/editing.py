@@ -506,6 +506,191 @@ def parse_line_target(value: str) -> int | None:
     return line if line > 0 else None
 
 
+def _source_lines(text: str) -> list[tuple[int, int, int]]:
+    """Return (start, content end, end) offsets for every source line."""
+    lines: list[tuple[int, int, int]] = []
+    line_start = 0
+    while line_start < len(text):
+        newline = text.find("\n", line_start)
+        if newline == -1:
+            content_end = line_end = len(text)
+        else:
+            content_end = newline
+            if content_end > line_start and text[content_end - 1] == "\r":
+                content_end -= 1
+            line_end = newline + 1
+        lines.append((line_start, content_end, line_end))
+        if newline == -1:
+            break
+        line_start = line_end
+    if not text or text.endswith("\n"):
+        lines.append((len(text), len(text), len(text)))
+    return lines
+
+
+def _list_item_parts(line: str) -> tuple[int, str] | None:
+    bullet = _BULLET_ITEM.match(line)
+    if bullet is not None:
+        indent, marker, spaces, rest = bullet.groups()
+        return len(indent) + len(marker) + len(spaces), rest
+    ordered = _ORDERED_ITEM.match(line)
+    if ordered is not None:
+        indent, number, delimiter, spaces, rest = ordered.groups()
+        prefix_length = sum(map(len, (indent, number, delimiter, spaces)))
+        return prefix_length, rest
+    return None
+
+
+def _leading_whitespace(line: str) -> str:
+    return line[: len(line) - len(line.lstrip(" \t"))]
+
+
+def _indent_columns(prefix: str, indent_width: int) -> int:
+    return sum(1 if character == " " else indent_width for character in prefix)
+
+
+def _changed_indent(prefix: str, indent_width: int, outdent: bool) -> str:
+    if not outdent:
+        return " " * indent_width + prefix
+    remaining = indent_width
+    position = 0
+    while position < len(prefix) and remaining > 0:
+        remaining -= 1 if prefix[position] == " " else indent_width
+        position += 1
+    return prefix[position:]
+
+
+def indent_list(
+    text: str,
+    start: int,
+    end: int,
+    indent_width: int,
+    *,
+    outdent: bool = False,
+) -> TextEdit | None:
+    """Indent selected list items and their nested content by one level."""
+    if indent_width <= 0:
+        raise ValueError("indent_width must be positive")
+    selection_start, selection_end = _clamped_range(text, start, end)
+    block_start, block_end = _selected_line_span(
+        text, selection_start, selection_end
+    )
+    lines = _source_lines(text)
+    fenced_ranges = _fenced_ranges(text)
+    roots: list[int] = []
+    for index, (line_start, content_end, _line_end) in enumerate(lines):
+        if line_start < block_start or line_start >= block_end:
+            continue
+        line = text[line_start:content_end]
+        if _list_item_parts(line) is not None and not _in_ranges(
+            line_start, fenced_ranges
+        ):
+            roots.append(index)
+
+    edited: set[int] = set()
+    for root in roots:
+        line_start, content_end, _line_end = lines[root]
+        line = text[line_start:content_end]
+        root_prefix = _leading_whitespace(line)
+        if outdent and not root_prefix:
+            continue
+        edited.add(root)
+        root_columns = _indent_columns(root_prefix, indent_width)
+        for index in range(root + 1, len(lines)):
+            child_start, child_end, _child_line_end = lines[index]
+            child = text[child_start:child_end]
+            if not child.strip():
+                continue
+            child_prefix = _leading_whitespace(child)
+            if _indent_columns(child_prefix, indent_width) <= root_columns:
+                break
+            edited.add(index)
+
+    changes: dict[int, tuple[str, str]] = {}
+    for index in sorted(edited):
+        line_start, content_end, _line_end = lines[index]
+        line = text[line_start:content_end]
+        previous = _leading_whitespace(line)
+        updated = _changed_indent(previous, indent_width, outdent)
+        if updated != previous:
+            changes[index] = (previous, updated)
+    if not changes:
+        return None
+
+    first = min(changes)
+    last = max(changes)
+    edit_start = lines[first][0]
+    edit_end = lines[last][1]
+    pieces: list[str] = []
+    position = edit_start
+    for index, (previous, updated) in changes.items():
+        line_start, content_end, _line_end = lines[index]
+        pieces.append(text[position:line_start])
+        pieces.append(updated + text[line_start + len(previous) : content_end])
+        position = content_end
+    pieces.append(text[position:edit_end])
+
+    def map_position(original: int) -> int:
+        shift = 0
+        for index, (line_start, content_end, _line_end) in enumerate(lines):
+            if original < line_start:
+                break
+            change = changes.get(index)
+            if original <= content_end:
+                if change is None:
+                    return original + shift
+                previous, updated = change
+                relative = original - line_start
+                delta = len(updated) - len(previous)
+                relative = (
+                    relative + delta
+                    if delta >= 0
+                    else max(0, relative + delta)
+                )
+                return line_start + shift + relative
+            if change is not None:
+                previous, updated = change
+                shift += len(updated) - len(previous)
+        return original + shift
+
+    return TextEdit(
+        start=edit_start,
+        end=edit_end,
+        replacement="".join(pieces),
+        selection_start=map_position(selection_start),
+        selection_end=map_position(selection_end),
+    )
+
+
+def toggle_task(text: str, cursor: int) -> TextEdit | None:
+    """Toggle the task marker on the current bullet or ordered list item."""
+    if not 0 <= cursor <= len(text):
+        return None
+    line_start = text.rfind("\n", 0, cursor) + 1
+    if _in_ranges(line_start, _fenced_ranges(text)):
+        return None
+    newline = text.find("\n", cursor)
+    content_end = len(text) if newline == -1 else newline
+    if content_end > line_start and text[content_end - 1] == "\r":
+        content_end -= 1
+    line = text[line_start:content_end]
+    parts = _list_item_parts(line)
+    if parts is None:
+        return None
+    prefix_length, rest = parts
+    if _TASK_MARKER.match(rest) is None:
+        return None
+    marker_start = line_start + prefix_length
+    replacement = "[ ]" if rest[1] in "xX" else "[x]"
+    return TextEdit(
+        start=marker_start,
+        end=marker_start + 3,
+        replacement=replacement,
+        selection_start=cursor,
+        selection_end=cursor,
+    )
+
+
 def continue_list(text: str, cursor: int) -> TextEdit | None:
     """Continue a list item, or exit an empty item, when Return is pressed."""
     if cursor < 0 or cursor > len(text):

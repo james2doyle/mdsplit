@@ -83,6 +83,8 @@ flatpak update --user io.github.james2doyle.MdSplit
 | Ctrl+L | Go to line |
 | Alt+Up / Alt+Down | Move current or selected lines |
 | Ctrl+Shift+D | Duplicate current line or selection |
+| Tab / Shift+Tab | Indent / outdent current or selected list items |
+| Ctrl+Shift+X / Ctrl+D | Toggle current task marker |
 | Ctrl+Shift+R | Format document or selection |
 | F9 | Cycle view mode |
 | Ctrl+B | Bold |

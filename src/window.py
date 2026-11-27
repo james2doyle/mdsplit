@@ -1263,6 +1263,21 @@ class MdSplitWindow(Adw.ApplicationWindow):
             if edit is not None:
                 self._apply_text_edit(edit)
                 return True
+        if keyval in (Gdk.KEY_Tab, Gdk.KEY_ISO_Left_Tab):
+            start, end = self._selection_or_cursor_offsets()
+            edit = editing.indent_list(
+                self.get_text(),
+                start,
+                end,
+                self.editor_view.get_indent_width(),
+                outdent=(
+                    keyval == Gdk.KEY_ISO_Left_Tab
+                    or bool(state & Gdk.ModifierType.SHIFT_MASK)
+                ),
+            )
+            if edit is not None:
+                self._apply_text_edit(edit)
+                return True
         if bounds:
             start_iter, end_iter = bounds
             if character in editing.SURROUND_PAIRS:
@@ -1354,6 +1369,12 @@ class MdSplitWindow(Adw.ApplicationWindow):
         self._apply_text_edit(
             editing.duplicate_line_or_selection(self.get_text(), start, end)
         )
+
+    def toggle_task(self) -> None:
+        insert = self._buffer.get_iter_at_mark(self._buffer.get_insert())
+        edit = editing.toggle_task(self.get_text(), insert.get_offset())
+        if edit is not None:
+            self._apply_text_edit(edit)
 
     def show_go_to_line(self) -> None:
         if self._go_to_line_dialog is not None:

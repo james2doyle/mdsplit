@@ -15,7 +15,8 @@ checklist, not a certification or a completed audit.
   the editor.
 - `Ctrl+L` opens Go to Line with numeric validation and returns focus to the
   editor. Alt+Up/Down moves selected lines; Ctrl+Shift+D duplicates the line or
-  selection. All edits are available as single undo steps.
+  selection. Tab and Shift+Tab indent and outdent list items; Ctrl+Shift+X or
+  Ctrl+D toggles the current task marker. All edits are single undo steps.
 - `Ctrl+Shift+R` formats the selection or the whole document. Large changes
   open a dialog with a diff preview; Cancel leaves the source untouched.
 - `Ctrl+,` opens Preferences; `Ctrl+?` opens the shortcuts dialog.

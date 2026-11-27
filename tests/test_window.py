@@ -711,6 +711,61 @@ assert tuple(iterator.get_offset() for iterator in bounds) == (1, 2)
 window._buffer.undo()
 assert window.get_text() == "abc"
 
+# Tab indents list subtrees and Shift+Tab outdents them as separate undo steps.
+list_source = "- parent\n  - child"
+window.set_text(list_source)
+window._buffer.place_cursor(window._buffer.get_iter_at_offset(3))
+assert window._on_key_pressed(None, Gdk.KEY_Tab, 0, 0)
+indented = "  - parent\n    - child"
+assert window.get_text() == indented
+insert = window._buffer.get_iter_at_mark(window._buffer.get_insert())
+assert insert.get_offset() == 5
+assert window._on_key_pressed(
+    None, Gdk.KEY_ISO_Left_Tab, 0, Gdk.ModifierType.SHIFT_MASK
+)
+assert window.get_text() == list_source
+window._buffer.undo()
+assert window.get_text() == indented
+window._buffer.undo()
+assert window.get_text() == list_source
+assert not window._on_key_pressed(
+    None, Gdk.KEY_ISO_Left_Tab, 0, Gdk.ModifierType.SHIFT_MASK
+)
+
+window.set_text("- one\n- two")
+window._buffer.select_range(
+    window._buffer.get_start_iter(), window._buffer.get_end_iter()
+)
+assert window._on_key_pressed(None, Gdk.KEY_Tab, 0, 0)
+assert window.get_text() == "  - one\n  - two"
+window.set_text("plain")
+window._buffer.place_cursor(window._buffer.get_start_iter())
+assert not window._on_key_pressed(None, Gdk.KEY_Tab, 0, 0)
+assert window.get_text() == "plain"
+
+# List indentation still composes with Return continuation.
+window.set_text("- item")
+window._buffer.place_cursor(window._buffer.get_end_iter())
+assert window._on_key_pressed(None, Gdk.KEY_Tab, 0, 0)
+window._buffer.place_cursor(window._buffer.get_end_iter())
+assert window._on_key_pressed(None, Gdk.KEY_Return, 0, 0)
+assert window.get_text() == "  - item\n  - "
+
+# Task shortcuts toggle bullet and ordered markers and are a no-op elsewhere.
+window.set_text("- [ ] task")
+window._buffer.place_cursor(window._buffer.get_start_iter())
+line_app.lookup_action("toggle-task").activate()
+assert window.get_text() == "- [x] task"
+window._buffer.undo()
+assert window.get_text() == "- [ ] task"
+window.set_text("2. [X] done")
+window._buffer.place_cursor(window._buffer.get_end_iter())
+line_app.lookup_action("toggle-task").activate()
+assert window.get_text() == "2. [ ] done"
+window.set_text("- item")
+line_app.lookup_action("toggle-task").activate()
+assert window.get_text() == "- item"
+
 # Go to Line keeps invalid input open, clamps large targets, and refocuses the
 # editor. Cancel closes the dialog without moving the cursor.
 window.editor_view.has_focus = editor_has_focus

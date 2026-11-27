@@ -6,7 +6,7 @@ import sys
 SOURCE_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, SOURCE_ROOT)
 
-from src.editing import continue_list
+from src.editing import continue_list, indent_list, toggle_task
 
 
 def apply(text, edit):
@@ -91,4 +91,80 @@ for source, cursor in (("-   ", 4), ("+   ", 4), ("- item\n-   ", 11)):
     assert edit is not None, source
     assert apply(source, edit) == ("- item\n\n" if "\n" in source else "\n")
 
-print("ok: list continuation")
+# Tab indents a list item and all of its nested content as one subtree.
+source = "- parent\n  - child\n    continuation\n- sibling"
+edit = indent_list(source, 3, 3, 2)
+assert edit is not None
+indented = apply(source, edit)
+assert indented == "  - parent\n    - child\n      continuation\n- sibling"
+assert (edit.selection_start, edit.selection_end) == (5, 5)
+edit = indent_list(indented, 5, 5, 2, outdent=True)
+assert edit is not None
+assert apply(indented, edit) == source
+assert (edit.selection_start, edit.selection_end) == (3, 3)
+
+# Ordered markers, numbering, task markers, and tabs survive indentation.
+edit = indent_list("10. [ ] item", 5, 5, 2)
+assert edit is not None
+assert apply("10. [ ] item", edit) == "  10. [ ] item"
+edit = indent_list("\t- item", 7, 7, 2, outdent=True)
+assert edit is not None
+assert apply("\t- item", edit) == "- item"
+assert (edit.selection_start, edit.selection_end) == (6, 6)
+edit = indent_list(" - item", 3, 3, 2, outdent=True)
+assert edit is not None
+assert apply(" - item", edit) == "- item"
+assert indent_list("- item", 6, 6, 2, outdent=True) is None
+
+# Mixed selections change only list items; a selection ending at column zero
+# excludes the following item, and CRLF remains byte-for-byte intact.
+source = "intro\n- one\nparagraph\n2. two\noutro"
+start = source.index("- one")
+end = source.index("2. two") + len("2. two")
+edit = indent_list(source, start, end, 2)
+assert edit is not None
+assert apply(source, edit) == "intro\n  - one\nparagraph\n  2. two\noutro"
+assert (edit.selection_start, edit.selection_end) == (start + 2, end + 4)
+source = "- one\n- two\n- three"
+edit = indent_list(source, 0, len("- one\n"), 2)
+assert edit is not None
+assert apply(source, edit) == "  - one\n- two\n- three"
+source = "- one\r\n2. two"
+edit = indent_list(source, 0, len(source), 2)
+assert edit is not None
+assert apply(source, edit) == "  - one\r\n  2. two"
+
+# Non-list text and list-looking lines inside fences fall through to normal Tab.
+assert indent_list("plain text", 0, 10, 2) is None
+assert indent_list("```\n- item\n```", 6, 6, 2) is None
+
+# Task toggling targets only the current item and preserves all other text.
+for source, expected in (
+    ("- [ ] task", "- [x] task"),
+    ("- [x] task", "- [ ] task"),
+    ("- [X] task", "- [ ] task"),
+    ("10. [ ] task", "10. [x] task"),
+    ("-   [ ]  task", "-   [x]  task"),
+    ("- [ ] task\r\n", "- [x] task\r\n"),
+):
+    edit = toggle_task(source, 0)
+    assert edit is not None, source
+    assert apply(source, edit) == expected
+    assert (edit.selection_start, edit.selection_end) == (0, 0)
+source = "  - [x] done\n- [ ] next"
+cursor = source.index("next")
+edit = toggle_task(source, cursor)
+assert edit is not None
+assert apply(source, edit) == "  - [x] done\n- [x] next"
+assert (edit.selection_start, edit.selection_end) == (cursor, cursor)
+for source, cursor in (
+    ("plain", 0),
+    ("- item", 0),
+    ("- [ ]task", 0),
+    ("```\n- [ ] task\n```", 6),
+):
+    assert toggle_task(source, cursor) is None
+assert toggle_task("- [ ] task", -1) is None
+assert toggle_task("- [ ] task", len("- [ ] task") + 1) is None
+
+print("ok: list continuation, indentation, and task toggles")
