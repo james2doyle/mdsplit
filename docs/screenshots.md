@@ -36,7 +36,7 @@ Use `gridhand` CLI tool for taking screenshots: `gridhand screenshot --window "M
 The AppStream screenshot is loaded from the release tag, not from `main`:
 
 ```xml
-<image type="source" width="1150" height="770">https://raw.githubusercontent.com/james2doyle/mdsplit/v1.6.1/docs/screenshot.png</image>
+<image type="source" width="1150" height="770">https://raw.githubusercontent.com/james2doyle/mdsplit/v1.7.0/docs/screenshot.png</image>
 ```
 
 When preparing a new release, update the tag in

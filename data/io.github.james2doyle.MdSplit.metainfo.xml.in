@@ -24,7 +24,7 @@
 
   <screenshots>
     <screenshot type="default">
-      <image type="source" width="1150" height="770">https://raw.githubusercontent.com/james2doyle/mdsplit/v1.6.1/docs/screenshot.png</image>
+      <image type="source" width="1150" height="770">https://raw.githubusercontent.com/james2doyle/mdsplit/v1.7.0/docs/screenshot.png</image>
       <caption>Markdown source and rendered preview side by side</caption>
     </screenshot>
   </screenshots>
@@ -70,6 +70,18 @@
   </branding>
 
   <releases>
+    <release version="1.7.0" date="2026-11-27">
+      <description translate="no">
+        <p>A more capable Markdown authoring release with smarter editing, link and image insertion, and reliability fixes.</p>
+        <ul>
+          <li>Auto-pair brackets, quotes, and Markdown delimiters with code-aware closing, deletion, and a preference toggle.</li>
+          <li>Move or duplicate lines, jump directly to a line, indent nested lists, and toggle task markers with new keyboard shortcuts.</li>
+          <li>Insert links with Ctrl+K, open local Markdown links in a new instance, and add images through the picker, drag-and-drop, or the clipboard.</li>
+          <li>Keep inserted images portable with relative paths and managed assets, validated by the same size limits as the preview.</li>
+          <li>Fix menu actions that could lose editor focus, structured GLib warning filtering, and development launches inside a host AppImage.</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.6.1" date="2026-11-20">
       <description translate="no">
         <p>Flatpak file access and spell-check defaults.</p>

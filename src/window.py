@@ -32,16 +32,16 @@ from . import (
     filechanges,
     fileio,
     image_insert,
-    launcher as launcher_mod,
     links,
     preview_vim,
     recovery,
     session,
     spellcheck,
 )
+from . import launcher as launcher_mod
 from .document import Document, text_statistics
-from .markdown_view import MarkdownView
 from .image_policy import ImageTooLargeError, ImageValidationError
+from .markdown_view import MarkdownView
 from .paths import ensure_file_extension, markdown_image_path, resolve_link
 
 if TYPE_CHECKING:

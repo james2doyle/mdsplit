@@ -41,10 +41,8 @@ if str(_VENDOR) not in sys.path:
 
 from markdown_it.token import Token
 
-from .image_policy import (
-    MAX_IMAGE_BYTES as _MAX_IMAGE_BYTES,
-    MAX_IMAGE_PIXELS as _MAX_IMAGE_PIXELS,
-)
+from .image_policy import MAX_IMAGE_BYTES as _MAX_IMAGE_BYTES
+from .image_policy import MAX_IMAGE_PIXELS as _MAX_IMAGE_PIXELS
 from .markdown_parser import create_parser, has_valid_underline_inline
 from .paths import contained_file, document_root, resolve_link
 

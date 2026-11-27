@@ -1,5 +1,5 @@
 project('md_split',
-          version: '1.6.1',
+          version: '1.7.0',
           license: 'MIT',
           license_files: 'COPYING',
     meson_version: '>= 1.1.0',

@@ -42,7 +42,8 @@ os.environ.setdefault(
     ),
 )
 
-from src import fileio, recovery, window as window_module
+from src import fileio, recovery
+from src import window as window_module
 from src.window import (
     MdSplitWindow,
     _file_load_error_message,
@@ -825,9 +826,9 @@ while GLib.MainContext.default().iteration(False):
     pass
 
 # Link and image authoring actions use native pickers and async preparation.
-from unittest import mock
 import struct
 import zlib
+from unittest import mock
 
 
 def make_png(width=2, height=2):
@@ -888,11 +889,16 @@ with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() a
         line_app.lookup_action("insert-image").activate()
         assert picker.call_count == 1
     dialog = window._file_dialog
+    assert dialog is not None
     assert dialog.get_title() == "Insert Image"
     assert dialog.get_default_filter() is not None
     original_insert_image_file = window.insert_image_file
     picked = []
-    window.insert_image_file = picked.append
+
+    def capture_picked(file: Gio.File) -> None:
+        picked.append(file)
+
+    window.insert_image_file = capture_picked
     fake_dialog = mock.Mock()
     fake_dialog.open_finish.return_value = Gio.File.new_for_path(str(local))
     window._on_image_picked(fake_dialog, None)
@@ -920,7 +926,11 @@ with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() a
 
     # File drops use the same insertion path and reject unsupported values.
     dropped = []
-    window.insert_image_file = dropped.append
+
+    def capture_dropped(file: Gio.File) -> None:
+        dropped.append(file)
+
+    window.insert_image_file = capture_dropped
     external_file = Gio.File.new_for_path(str(external))
 
     value = GObject.Value()
@@ -1419,7 +1429,11 @@ with tempfile.TemporaryDirectory() as link_directory:
     )
     window.set_text("[notes](notes.md) and [missing](absent.md)")
     launched = []
-    window._launch_uri = launched.append
+
+    def capture_launch(uri: str) -> None:
+        launched.append(uri)
+
+    window._launch_uri = capture_launch
     errors = []
     window._show_error = lambda heading, message: errors.append(
         (heading, message)
