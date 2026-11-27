@@ -88,4 +88,25 @@ with mock.patch.dict(os.environ, {"APPDIR": "/tmp/host-app"}):
     assert "APPDIR" not in child_env
     assert os.environ["APPDIR"] == "/tmp/host-app"
 
+# The installed launcher relocates only for an actual AppImage. A host AppImage
+# terminal also exports APPDIR to Flatpak, but must not redirect its resources.
+launcher_source = (Path(SOURCE_ROOT) / "src" / "md_split.in").read_text(
+    encoding="utf-8"
+)
+launcher_source = launcher_source.split("if __name__ == '__main__':")[0]
+launcher_source = (
+    launcher_source.replace("@VERSION@", "test")
+    .replace("@pkgdatadir@", "/configured/share/md_split")
+    .replace("@localedir@", "/configured/share/locale")
+)
+with mock.patch.dict(os.environ, {"APPDIR": "/tmp/host-app"}, clear=False):
+    os.environ.pop("APPIMAGE", None)
+    namespace = {}
+    exec(compile(launcher_source, "md_split.in", "exec"), namespace)
+    assert namespace["pkgdatadir"] == "/configured/share/md_split"
+    os.environ["APPIMAGE"] = "/tmp/host.AppImage"
+    namespace = {}
+    exec(compile(launcher_source, "md_split.in", "exec"), namespace)
+    assert namespace["pkgdatadir"] == "/tmp/host-app/usr/share/md_split"
+
 print("ok: process launchers")
