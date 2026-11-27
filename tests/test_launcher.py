@@ -88,8 +88,9 @@ with mock.patch.dict(os.environ, {"APPDIR": "/tmp/host-app"}):
     assert "APPDIR" not in child_env
     assert os.environ["APPDIR"] == "/tmp/host-app"
 
-# The installed launcher relocates only for an actual AppImage. A host AppImage
-# terminal also exports APPDIR to Flatpak, but must not redirect its resources.
+# The installed launcher relocates only when APPDIR contains MD Split's
+# resource. APPIMAGE alone is not evidence: an AppImage-hosted terminal also
+# exports both variables to Flatpak, but its AppDir is unrelated to MD Split.
 launcher_source = (Path(SOURCE_ROOT) / "src" / "md_split.in").read_text(
     encoding="utf-8"
 )
@@ -99,28 +100,50 @@ launcher_source = (
     .replace("@pkgdatadir@", "/configured/share/md_split")
     .replace("@localedir@", "/configured/share/locale")
 )
-with mock.patch.dict(os.environ, {"APPDIR": "/tmp/host-app"}, clear=False):
-    os.environ.pop("APPIMAGE", None)
-    namespace = {}
-    exec(compile(launcher_source, "md_split.in", "exec"), namespace)
-    assert namespace["pkgdatadir"] == "/configured/share/md_split"
-    os.environ["APPIMAGE"] = "/tmp/host.AppImage"
-    namespace = {}
-    exec(compile(launcher_source, "md_split.in", "exec"), namespace)
-    assert namespace["pkgdatadir"] == "/tmp/host-app/usr/share/md_split"
 
-# An extracted AppDir has APPDIR but not APPIMAGE. A real resource file keeps
-# relocation working, while an unrelated host directory falls back as above.
+
+def launcher_pkgdatadir(appdir, appimage=None):
+    with mock.patch.dict(os.environ, {}, clear=False):
+        os.environ.pop("APPIMAGE", None)
+        if appdir is None:
+            os.environ.pop("APPDIR", None)
+        else:
+            os.environ["APPDIR"] = str(appdir)
+        if appimage is not None:
+            os.environ["APPIMAGE"] = appimage
+        namespace = {}
+        exec(compile(launcher_source, "md_split.in", "exec"), namespace)
+        return namespace["pkgdatadir"]
+
+
 with tempfile.TemporaryDirectory() as appdir:
     resource = (
         Path(appdir) / "usr" / "share" / "md_split" / "md_split.gresource"
     )
+
+    # An unrelated host AppDir falls back to the configured install path even
+    # when both APPDIR and APPIMAGE are exported by the host terminal.
+    assert launcher_pkgdatadir(appdir) == "/configured/share/md_split"
+    assert (
+        launcher_pkgdatadir(appdir, "/tmp/host.AppImage")
+        == "/configured/share/md_split"
+    )
+
     resource.parent.mkdir(parents=True)
     resource.write_bytes(b"resource")
-    with mock.patch.dict(os.environ, {"APPDIR": appdir}, clear=False):
-        os.environ.pop("APPIMAGE", None)
-        namespace = {}
-        exec(compile(launcher_source, "md_split.in", "exec"), namespace)
-        assert namespace["pkgdatadir"] == str(resource.parent)
+
+    # A valid AppDir relocates both directly from an AppImage and when it has
+    # been extracted, in which case APPIMAGE is no longer set.
+    assert launcher_pkgdatadir(appdir) == str(resource.parent)
+    assert (
+        launcher_pkgdatadir(appdir, "/opt/md_split.AppImage")
+        == str(resource.parent)
+    )
+
+# APPIMAGE without APPDIR cannot identify a relocated resource either.
+assert (
+    launcher_pkgdatadir(None, "/tmp/host.AppImage")
+    == "/configured/share/md_split"
+)
 
 print("ok: process launchers")
