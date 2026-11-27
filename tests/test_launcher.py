@@ -78,3 +78,14 @@ with mock.patch.object(
 # The launcher executable lookup finds something usable in a real install.
 program = launcher._launcher_program()
 assert program is not None and os.path.isfile(program), program
+
+# A terminal or other host AppImage must not redirect the development child
+# away from the repository's local install prefix.
+import dev
+
+with mock.patch.dict(os.environ, {"APPDIR": "/tmp/host-app"}):
+    child_env = dev.app_env()
+    assert "APPDIR" not in child_env
+    assert os.environ["APPDIR"] == "/tmp/host-app"
+
+print("ok: process launchers")

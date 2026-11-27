@@ -47,6 +47,9 @@ def log(message):
 def app_env():
     """Child environment for the app: unbuffered logs, inspector by default."""
     env = {**os.environ, "PYTHONUNBUFFERED": "1"}
+    # A surrounding AppImage (such as the terminal running this script) has its
+    # own APPDIR. The development child uses the local Meson prefix instead.
+    env.pop("APPDIR", None)
     # GTK_DEBUG=interactive opens the GTK Inspector; a user-set GTK_DEBUG wins.
     env.setdefault("GTK_DEBUG", "interactive")
     return env
