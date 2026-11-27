@@ -26,6 +26,7 @@ The filter keeps unrelated warnings visible. Set
 
 from __future__ import annotations
 
+import ctypes
 import os
 import re
 
@@ -91,6 +92,44 @@ def _on_known_warning(
     GLib.log_default_handler(domain, level, message, user_data)
 
 
+def _field_text(field) -> str | None:
+    if field is None:
+        return None
+    value = field.value
+    if isinstance(value, str):
+        return value
+    if isinstance(value, (bytes, bytearray)):
+        return bytes(value).split(b"\0", 1)[0].decode(
+            "utf-8", errors="replace"
+        )
+    if isinstance(value, int) and value > 0:
+        # PyGObject exposes structured fields as pointers. MESSAGE and
+        # GLIB_DOMAIN are UTF-8; a negative length means NUL-terminated.
+        raw = (
+            ctypes.string_at(value, field.length)
+            if field.length >= 0
+            else ctypes.string_at(value)
+        )
+        return raw.decode("utf-8", errors="replace")
+    return None
+
+
+def _on_structured_warning(
+    level: GLib.LogLevelFlags,
+    fields,
+    _field_count: int | None = None,
+    user_data: object = None,
+) -> GLib.LogWriterOutput:
+    values = {field.key: field for field in fields}
+    domain = _field_text(values.get("GLIB_DOMAIN"))
+    message = _field_text(values.get("MESSAGE"))
+    if bool(level & GLib.LogLevelFlags.LEVEL_WARNING) and is_known_warning(
+        domain, message
+    ):
+        return GLib.LogWriterOutput.HANDLED
+    return GLib.log_writer_default(level, fields, user_data)
+
+
 def install_known_warning_filter() -> None:
     """Install the narrow warning filter once for the application run."""
     if os.environ.get("MD_SPLIT_SHOW_WARNINGS") == "1":
@@ -99,3 +138,5 @@ def install_known_warning_filter() -> None:
         GLib.log_set_handler(
             domain, GLib.LogLevelFlags.LEVEL_WARNING, _on_known_warning
         )
+    # Per-domain handlers are ignored when structured logging is enabled.
+    GLib.log_set_writer_func(_on_structured_warning, None)

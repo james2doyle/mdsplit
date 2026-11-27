@@ -1,7 +1,9 @@
 """Headless tests for the known-warning filter."""
 
+import ctypes
 import os
 import sys
+from types import SimpleNamespace
 
 SOURCE_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, SOURCE_ROOT)
@@ -13,6 +15,7 @@ from gi.repository import GLib
 
 from src.logging_utils import (
     _on_known_warning,
+    _on_structured_warning,
     install_known_warning_filter,
     is_known_warning,
 )
@@ -191,6 +194,70 @@ try:
 finally:
     GLib.log_default_handler = original_handler
 
+# Structured logging bypasses per-domain handlers. The writer drops only known
+# fields and delegates every unrelated message to GLib's default writer.
+structured_calls = []
+original_writer = GLib.log_writer_default
+GLib.log_writer_default = lambda *args: structured_calls.append(args) or (
+    GLib.LogWriterOutput.HANDLED
+)
+try:
+    message = (
+        "Duplicate call to gdk_frame_timings_presented() with different "
+        "values: presentation time is 16.668ms off from expected"
+    )
+    fields = [
+        SimpleNamespace(key="GLIB_DOMAIN", value=b"Gdk"),
+        SimpleNamespace(key="MESSAGE", value=message.encode("utf-8")),
+    ]
+    assert _on_structured_warning(
+        GLib.LogLevelFlags.LEVEL_WARNING, fields, len(fields), None
+    ) == GLib.LogWriterOutput.HANDLED
+    assert structured_calls == []
+    fields[1].value = "An unrelated structured warning"
+    assert _on_structured_warning(
+        GLib.LogLevelFlags.LEVEL_WARNING, fields, len(fields), None
+    ) == GLib.LogWriterOutput.HANDLED
+    assert len(structured_calls) == 1
+finally:
+    GLib.log_writer_default = original_writer
+
 install_known_warning_filter()
+
+# Emit through GLib itself, including its four-argument writer callback and
+# pointer-backed LogField values, rather than only invoking the helper directly.
+def structured_field(key, text):
+    buffer = ctypes.create_string_buffer(text.encode("utf-8"))
+    field = GLib.LogField()
+    field.key = key
+    field.value = ctypes.addressof(buffer)
+    field.length = -1
+    return field, buffer
+
+
+structured_calls = []
+original_writer = GLib.log_writer_default
+GLib.log_writer_default = lambda *args: structured_calls.append(args) or (
+    GLib.LogWriterOutput.HANDLED
+)
+try:
+    fields = [
+        structured_field("GLIB_DOMAIN", "Gdk"),
+        structured_field("MESSAGE", message),
+    ]
+    GLib.log_structured_array(
+        GLib.LogLevelFlags.LEVEL_WARNING, [field for field, _buffer in fields]
+    )
+    assert structured_calls == []
+    fields = [
+        structured_field("GLIB_DOMAIN", "Gdk"),
+        structured_field("MESSAGE", "An unrelated structured warning"),
+    ]
+    GLib.log_structured_array(
+        GLib.LogLevelFlags.LEVEL_WARNING, [field for field, _buffer in fields]
+    )
+    assert len(structured_calls) == 1
+finally:
+    GLib.log_writer_default = original_writer
 
 print("ok: known warning filter")

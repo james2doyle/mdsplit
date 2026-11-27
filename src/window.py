@@ -1367,28 +1367,38 @@ class MdSplitWindow(Adw.ApplicationWindow):
         return insert.get_offset(), insert.get_offset()
 
     def move_lines(self, direction: int) -> None:
+        self._focus_authoring_editor()
         start, end = self._selection_or_cursor_offsets()
         edit = editing.move_lines(self.get_text(), start, end, direction)
         if edit is not None:
             self._apply_text_edit(edit)
 
     def duplicate_line_or_selection(self) -> None:
+        self._focus_authoring_editor()
         start, end = self._selection_or_cursor_offsets()
         self._apply_text_edit(
             editing.duplicate_line_or_selection(self.get_text(), start, end)
         )
 
     def toggle_task(self) -> None:
+        self._focus_authoring_editor()
         insert = self._buffer.get_iter_at_mark(self._buffer.get_insert())
         edit = editing.toggle_task(self.get_text(), insert.get_offset())
         if edit is not None:
             self._apply_text_edit(edit)
 
+    def _focus_authoring_editor(self) -> None:
+        if self._view_mode == "preview":
+            self._apply_view_mode("both", persist=False)
+        self.focus_editor()
+
     def insert_link(self) -> None:
+        self._focus_authoring_editor()
         start, end = self._selection_or_cursor_offsets()
         self._apply_text_edit(editing.insert_link(self.get_text(), start, end))
 
     def show_image_picker(self) -> None:
+        self._focus_authoring_editor()
         dialog = Gtk.FileDialog()
         dialog.set_title(_("Insert Image"))
         dialog.set_accept_label(_("Insert"))
@@ -1442,6 +1452,7 @@ class MdSplitWindow(Adw.ApplicationWindow):
         )
 
     def paste_image(self) -> None:
+        self._focus_authoring_editor()
         context = self._image_context()
         clipboard = self.get_clipboard()
         clipboard.read_texture_async(

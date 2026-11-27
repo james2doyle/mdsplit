@@ -72,10 +72,14 @@ document error:
   object file` appears while the spelling backend probes provider plugins that
   are not installed. Dictionaries still load through an available provider
   such as hunspell.
+- `Duplicate call to gdk_frame_timings_presented()` is a compositor frame-timing
+  warning with slightly different timestamps; it does not indicate an editor
+  failure.
 
-The filter matches only those exact messages in the `Gtk` and `libenchant` log
-domains; other warnings still appear. Set `MD_SPLIT_SHOW_WARNINGS=1` to disable
-the filter while debugging.
+The filter matches only those exact messages in the `Gtk`, `Gdk`, and
+`libenchant` log domains, through both legacy and structured GLib logging;
+other warnings still appear. Set `MD_SPLIT_SHOW_WARNINGS=1` to disable the
+filter while debugging.
 
 ## Collect Python debug logs
 

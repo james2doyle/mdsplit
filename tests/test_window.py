@@ -811,12 +811,13 @@ window.go_to_line(0)
 insert = window._buffer.get_iter_at_mark(window._buffer.get_insert())
 assert insert.get_line() == 0
 
-# Menu actions do not edit the buffer while another widget owns focus.
+# Menu line actions also work after the menu takes focus away from the editor.
 window.set_text("one\ntwo")
 window._buffer.place_cursor(window._buffer.get_iter_at_offset(2))
 window.editor_view.has_focus = lambda: False
 line_app.lookup_action("duplicate-line").activate()
-assert window.get_text() == "one\ntwo"
+assert window.get_text() == "one\none\ntwo"
+assert window.get_focus() is window.editor_view
 window.editor_view.has_focus = editor_has_focus
 window._force_close = True
 window.destroy()
@@ -854,7 +855,9 @@ window.present()
 while GLib.MainContext.default().iteration(False):
     pass
 assert line_app.props.active_window is window
-window.editor_view.has_focus = lambda: True
+# Menu activation takes focus away from the editor; authoring actions must
+# still run and return focus rather than silently doing nothing.
+window.editor_view.has_focus = lambda: False
 window.set_text("")
 line_app.lookup_action("insert-link").activate()
 assert window.get_text() == "[]()"
@@ -882,7 +885,7 @@ with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() a
     # The picker is image-filtered and forwards the selected local file without
     # opening a real system dialog during the test.
     with mock.patch.object(Gtk.FileDialog, "open", autospec=True) as picker:
-        window.show_image_picker()
+        line_app.lookup_action("insert-image").activate()
         assert picker.call_count == 1
     dialog = window._file_dialog
     assert dialog.get_title() == "Insert Image"

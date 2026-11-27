@@ -493,7 +493,7 @@ class MdSplitApplication(Adw.Application):
 
     def on_line_operation_action(self, action, _parameter):
         win = self.props.active_window
-        if win is None or not win.editor_view.has_focus():
+        if win is None:
             return
         name = action.get_name()
         if name == "duplicate-line":
@@ -510,17 +510,17 @@ class MdSplitApplication(Adw.Application):
 
     def on_insert_link_action(self, *_args):
         win = self.props.active_window
-        if win is not None and win.editor_view.has_focus():
+        if win is not None:
             win.insert_link()
 
     def on_insert_image_action(self, *_args):
         win = self.props.active_window
-        if win is not None and win.editor_view.has_focus():
+        if win is not None:
             win.show_image_picker()
 
     def on_paste_image_action(self, *_args):
         win = self.props.active_window
-        if win is not None and win.editor_view.has_focus():
+        if win is not None:
             win.paste_image()
 
     def on_format_document_action(self, *_args):
