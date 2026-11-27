@@ -24,7 +24,7 @@
 
   <screenshots>
     <screenshot type="default">
-      <image type="source" width="1150" height="770">https://raw.githubusercontent.com/james2doyle/mdsplit/v1.7.0/docs/screenshot.png</image>
+      <image type="source" width="1150" height="770">https://raw.githubusercontent.com/james2doyle/mdsplit/v1.7.1/docs/screenshot.png</image>
       <caption>Markdown source and rendered preview side by side</caption>
     </screenshot>
   </screenshots>
@@ -70,6 +70,16 @@
   </branding>
 
   <releases>
+    <release version="1.7.1" date="2026-11-27">
+      <description translate="no">
+        <p>Flatpak launcher hotfix for AppImage-hosted terminals.</p>
+        <ul>
+          <li>Resolve resources from APPDIR only when APPIMAGE is also present, preserving direct AppImage relocation.</li>
+          <li>Prevent a host AppImage's APPDIR from breaking Flatpak startup while keeping the normal Flatpak and system paths intact.</li>
+          <li>Add regression coverage for both direct AppImage and nested Flatpak environments.</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.7.0" date="2026-11-27">
       <description translate="no">
         <p>A more capable Markdown authoring release with smarter editing, link and image insertion, and reliability fixes.</p>

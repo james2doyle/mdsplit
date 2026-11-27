@@ -4,7 +4,7 @@
 
 [project]
 name = "md_split"
-version = "1.7.0"
+version = "1.7.1"
 description = "A native GNOME Markdown editor with a live GFM preview"
 readme = "README.md"
 requires-python = ">=3.12"
