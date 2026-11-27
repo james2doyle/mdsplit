@@ -109,4 +109,18 @@ with mock.patch.dict(os.environ, {"APPDIR": "/tmp/host-app"}, clear=False):
     exec(compile(launcher_source, "md_split.in", "exec"), namespace)
     assert namespace["pkgdatadir"] == "/tmp/host-app/usr/share/md_split"
 
+# An extracted AppDir has APPDIR but not APPIMAGE. A real resource file keeps
+# relocation working, while an unrelated host directory falls back as above.
+with tempfile.TemporaryDirectory() as appdir:
+    resource = (
+        Path(appdir) / "usr" / "share" / "md_split" / "md_split.gresource"
+    )
+    resource.parent.mkdir(parents=True)
+    resource.write_bytes(b"resource")
+    with mock.patch.dict(os.environ, {"APPDIR": appdir}, clear=False):
+        os.environ.pop("APPIMAGE", None)
+        namespace = {}
+        exec(compile(launcher_source, "md_split.in", "exec"), namespace)
+        assert namespace["pkgdatadir"] == str(resource.parent)
+
 print("ok: process launchers")

@@ -10,7 +10,14 @@ import sys
 
 VERSION = '@VERSION@'
 appdir = os.environ.get('APPDIR')
-if appdir and os.environ.get('APPIMAGE'):
+appdir_resource = (
+    os.path.isfile(
+        os.path.join(appdir, 'usr', 'share', 'md_split', 'md_split.gresource')
+    )
+    if appdir
+    else False
+)
+if appdir and (os.environ.get('APPIMAGE') or appdir_resource):
     pkgdatadir = os.path.join(appdir, 'usr', 'share', 'md_split')
     localedir = os.path.join(appdir, 'usr', 'share', 'locale')
 else:
