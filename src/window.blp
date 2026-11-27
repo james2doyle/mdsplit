@@ -320,8 +320,24 @@ menu main_menu {
       label: _("_Replace…");
       action: "app.replace";
     }
+    item {
+      label: _("Go to _Line…");
+      action: "app.go-to-line";
+    }
   }
   section {
+    item {
+      label: _("Move Lines _Up");
+      action: "app.move-lines-up";
+    }
+    item {
+      label: _("Move Lines _Down");
+      action: "app.move-lines-down";
+    }
+    item {
+      label: _("_Duplicate Line or Selection");
+      action: "app.duplicate-line";
+    }
     item {
       label: _("_Format Document");
       action: "app.format-document";

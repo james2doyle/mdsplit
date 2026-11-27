@@ -366,6 +366,146 @@ def _line_ending(text: str, line_end: int) -> str:
     return "\n"
 
 
+def _clamped_range(text: str, start: int, end: int) -> tuple[int, int]:
+    start = max(0, min(start, len(text)))
+    end = max(0, min(end, len(text)))
+    return min(start, end), max(start, end)
+
+
+def _selected_line_span(text: str, start: int, end: int) -> tuple[int, int]:
+    """Return complete lines touched by a cursor or selection."""
+    line_start = text.rfind("\n", 0, start) + 1
+    scan_end = end
+    # A selection ending at column zero does not include that following line.
+    if end > start and end > 0 and text[end - 1] == "\n":
+        scan_end -= 1
+    newline = text.find("\n", scan_end)
+    line_end = len(text) if newline == -1 else newline + 1
+    return line_start, line_end
+
+
+def _split_line_ending(segment: str) -> tuple[str, str]:
+    if segment.endswith("\r\n"):
+        return segment[:-2], "\r\n"
+    if segment.endswith("\n"):
+        return segment[:-1], "\n"
+    return segment, ""
+
+
+def move_lines(
+    text: str, start: int, end: int, direction: int
+) -> TextEdit | None:
+    """Move the selected lines one line up (``-1``) or down (``1``)."""
+    if direction not in (-1, 1):
+        raise ValueError("direction must be -1 or 1")
+    selection_start, selection_end = _clamped_range(text, start, end)
+    block_start, block_end = _selected_line_span(
+        text, selection_start, selection_end
+    )
+    block = text[block_start:block_end]
+    relative_start = selection_start - block_start
+    relative_end = selection_end - block_start
+
+    if direction == -1:
+        if block_start == 0:
+            return None
+        previous_start = text.rfind("\n", 0, block_start - 1) + 1
+        previous = text[previous_start:block_start]
+        block_body, block_eol = _split_line_ending(block)
+        if block_eol:
+            replacement = block + previous
+        else:
+            # The former last line needs the previous line's terminator; the
+            # new last line must lose it rather than gaining a blank line.
+            previous_body, previous_eol = _split_line_ending(previous)
+            replacement = block_body + previous_eol + previous_body
+        if replacement == text[previous_start:block_end]:
+            return None
+        return TextEdit(
+            start=previous_start,
+            end=block_end,
+            replacement=replacement,
+            selection_start=previous_start + relative_start,
+            selection_end=previous_start + relative_end,
+        )
+
+    if block_end == len(text) and text.endswith("\n") and block_start < len(text):
+        # GtkTextBuffer exposes an empty final line after a trailing newline,
+        # even though that line has no characters in the source string.
+        following = ""
+        next_end = len(text)
+    else:
+        if block_end >= len(text):
+            return None
+        newline = text.find("\n", block_end)
+        next_end = len(text) if newline == -1 else newline + 1
+        following = text[block_end:next_end]
+    block_body, block_eol = _split_line_ending(block)
+    _following_body, following_eol = _split_line_ending(following)
+    if following_eol:
+        replacement = following + block
+        moved_start = block_start + len(following)
+        moved_length = len(block)
+    else:
+        replacement = following + block_eol + block_body
+        moved_start = block_start + len(following) + len(block_eol)
+        # A selection that included the old terminator cannot include it after
+        # the terminator moves between the two lines. Keep the selected text.
+        moved_length = len(block_body)
+    if replacement == text[block_start:next_end]:
+        return None
+    relative_start = min(relative_start, moved_length)
+    relative_end = min(relative_end, moved_length)
+    return TextEdit(
+        start=block_start,
+        end=next_end,
+        replacement=replacement,
+        selection_start=moved_start + relative_start,
+        selection_end=moved_start + relative_end,
+    )
+
+
+def duplicate_line_or_selection(text: str, start: int, end: int) -> TextEdit:
+    """Duplicate a selection exactly, or the current line when collapsed."""
+    selection_start, selection_end = _clamped_range(text, start, end)
+    if selection_start != selection_end:
+        return TextEdit(
+            start=selection_end,
+            end=selection_end,
+            replacement=text[selection_start:selection_end],
+            selection_start=selection_start,
+            selection_end=selection_end,
+        )
+
+    line_start, line_end = _selected_line_span(
+        text, selection_start, selection_end
+    )
+    segment = text[line_start:line_end]
+    _body, eol = _split_line_ending(segment)
+    replacement = segment if eol else _line_ending(text, line_end) + segment
+    return TextEdit(
+        start=line_end,
+        end=line_end,
+        replacement=replacement,
+        selection_start=selection_start,
+        selection_end=selection_end,
+    )
+
+
+def parse_line_target(value: str) -> int | None:
+    """Parse a one-based positive line number, rejecting other input."""
+    value = value.strip()
+    if not value or not value.isascii() or not value.isdigit():
+        return None
+    try:
+        line = int(value)
+    except ValueError:
+        # Python limits decimal conversion digits; treat oversized pastes as
+        # invalid input instead of raising from a dialog response handler.
+        return None
+    return line if line > 0 else None
+
+
 def continue_list(text: str, cursor: int) -> TextEdit | None:
     """Continue a list item, or exit an empty item, when Return is pressed."""
     if cursor < 0 or cursor > len(text):

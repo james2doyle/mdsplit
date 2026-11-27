@@ -26,6 +26,8 @@ demo = contents("/io/github/james2doyle/MdSplit/demo.md").decode("utf-8")
 assert demo.startswith("# MD Split"), demo[:40]
 assert len(demo) > 200
 assert "Auto-pair delimiters" in demo
+assert "Ctrl+Shift+D" in demo
+assert "Go to Line" in demo
 
 preferences = contents(
     "/io/github/james2doyle/MdSplit/preferences-dialog.ui"
@@ -37,6 +39,9 @@ assert "close_button" not in preferences
 window = contents("/io/github/james2doyle/MdSplit/window.ui").decode("utf-8")
 assert "view_menu" in window
 assert "toast_overlay" in window
+assert "app.go-to-line" in window
+assert "app.move-lines-up" in window
+assert "app.duplicate-line" in window
 
 assert contents("/io/github/james2doyle/MdSplit/style.css")
 

@@ -80,6 +80,9 @@ flatpak update --user io.github.james2doyle.MdSplit
 | Ctrl+G | Find next |
 | Ctrl+Shift+G | Find previous |
 | Ctrl+H | Replace |
+| Ctrl+L | Go to line |
+| Alt+Up / Alt+Down | Move current or selected lines |
+| Ctrl+Shift+D | Duplicate current line or selection |
 | Ctrl+Shift+R | Format document or selection |
 | F9 | Cycle view mode |
 | Ctrl+B | Bold |

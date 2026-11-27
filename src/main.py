@@ -97,6 +97,13 @@ class MdSplitApplication(Adw.Application):
             ["<control><shift>g"],
         )
         self.create_action("replace", self.on_replace_action, ["<control>h"])
+        for name, shortcut in (
+            ("move-lines-up", "<alt>Up"),
+            ("move-lines-down", "<alt>Down"),
+            ("duplicate-line", "<control><shift>d"),
+        ):
+            self.create_action(name, self.on_line_operation_action, [shortcut])
+        self.create_action("go-to-line", self.on_go_to_line_action, ["<control>l"])
         self.create_action(
             "format-document",
             self.on_format_document_action,
@@ -477,6 +484,21 @@ class MdSplitApplication(Adw.Application):
         win = self.props.active_window
         if win is not None:
             win.show_replace()
+
+    def on_line_operation_action(self, action, _parameter):
+        win = self.props.active_window
+        if win is None or not win.editor_view.has_focus():
+            return
+        name = action.get_name()
+        if name == "duplicate-line":
+            win.duplicate_line_or_selection()
+        else:
+            win.move_lines(-1 if name == "move-lines-up" else 1)
+
+    def on_go_to_line_action(self, *_args):
+        win = self.props.active_window
+        if win is not None:
+            win.show_go_to_line()
 
     def on_format_document_action(self, *_args):
         win = self.props.active_window

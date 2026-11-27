@@ -48,6 +48,11 @@ Adw.ShortcutsDialog shortcuts_dialog {
       title: C_("shortcut window", "Replace");
       action-name: "app.replace";
     }
+
+    Adw.ShortcutsItem {
+      title: C_("shortcut window", "Go to Line");
+      action-name: "app.go-to-line";
+    }
   }
 
   Adw.ShortcutsSection {
@@ -61,6 +66,25 @@ Adw.ShortcutsDialog shortcuts_dialog {
     Adw.ShortcutsItem {
       title: C_("shortcut window", "Show Shortcuts");
       action-name: "app.shortcuts";
+    }
+  }
+
+  Adw.ShortcutsSection {
+    title: _("Editing");
+
+    Adw.ShortcutsItem {
+      title: C_("shortcut window", "Move Lines Up");
+      action-name: "app.move-lines-up";
+    }
+
+    Adw.ShortcutsItem {
+      title: C_("shortcut window", "Move Lines Down");
+      action-name: "app.move-lines-down";
+    }
+
+    Adw.ShortcutsItem {
+      title: C_("shortcut window", "Duplicate Line or Selection");
+      action-name: "app.duplicate-line";
     }
   }
 

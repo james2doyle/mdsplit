@@ -174,6 +174,7 @@ class MdSplitWindow(Adw.ApplicationWindow):
         self._file_dialog = None
         self._confirm_dialog = None
         self._format_dialog = None
+        self._go_to_line_dialog = None
         self._error_dialog = None
         self._load_cancellable = None
         self._load_generation = 0
@@ -1332,16 +1333,115 @@ class MdSplitWindow(Adw.ApplicationWindow):
             return True
         return False
 
-    def format_selection(self, kind: str) -> None:
-        text = self.get_text()
+    # -- line operations -------------------------------------------------
+
+    def _selection_or_cursor_offsets(self) -> tuple[int, int]:
         bounds = self._buffer.get_selection_bounds()
         if bounds:
             start_iter, end_iter = bounds
-            start = start_iter.get_offset()
-            end = end_iter.get_offset()
-        else:
-            insert = self._buffer.get_iter_at_mark(self._buffer.get_insert())
-            start = end = insert.get_offset()
+            return start_iter.get_offset(), end_iter.get_offset()
+        insert = self._buffer.get_iter_at_mark(self._buffer.get_insert())
+        return insert.get_offset(), insert.get_offset()
+
+    def move_lines(self, direction: int) -> None:
+        start, end = self._selection_or_cursor_offsets()
+        edit = editing.move_lines(self.get_text(), start, end, direction)
+        if edit is not None:
+            self._apply_text_edit(edit)
+
+    def duplicate_line_or_selection(self) -> None:
+        start, end = self._selection_or_cursor_offsets()
+        self._apply_text_edit(
+            editing.duplicate_line_or_selection(self.get_text(), start, end)
+        )
+
+    def show_go_to_line(self) -> None:
+        if self._go_to_line_dialog is not None:
+            self._go_to_line_dialog.present()
+            return
+        if self._view_mode == "preview":
+            self._apply_view_mode("both", persist=False)
+
+        dialog = Gtk.Dialog(
+            title=_("Go to Line"), transient_for=self, modal=True
+        )
+        dialog.add_button(_("_Cancel"), Gtk.ResponseType.CANCEL)
+        go_button = dialog.add_button(_("_Go"), Gtk.ResponseType.ACCEPT)
+        go_button.add_css_class("suggested-action")
+        dialog.set_default_response(Gtk.ResponseType.ACCEPT)
+
+        content = dialog.get_content_area()
+        content.set_spacing(6)
+        content.set_margin_top(12)
+        content.set_margin_bottom(12)
+        content.set_margin_start(12)
+        content.set_margin_end(12)
+        line_count = self._buffer.get_line_count()
+        label = Gtk.Label(
+            label=_("Line number (1–{count})").format(count=line_count),
+            xalign=0.0,
+        )
+        content.append(label)
+        entry = Gtk.Entry()
+        entry.set_input_purpose(Gtk.InputPurpose.DIGITS)
+        entry.set_activates_default(True)
+        entry.set_hexpand(True)
+        insert = self._buffer.get_iter_at_mark(self._buffer.get_insert())
+        entry.set_text(str(insert.get_line() + 1))
+        content.append(entry)
+        error = Gtk.Label(xalign=0.0)
+        error.set_wrap(True)
+        error.add_css_class("error")
+        error.set_visible(False)
+        content.append(error)
+
+        def on_response(current, response: Gtk.ResponseType) -> None:
+            if response == Gtk.ResponseType.ACCEPT:
+                target = editing.parse_line_target(entry.get_text())
+                if target is None:
+                    count = self._buffer.get_line_count()
+                    error.set_label(
+                        _("Enter a line number from 1 to {count}.").format(
+                            count=count
+                        )
+                    )
+                    error.set_visible(True)
+                    entry.grab_focus()
+                    entry.select_region(0, -1)
+                    return
+                self._go_to_line_dialog = None
+                current.destroy()
+                self.go_to_line(target)
+                return
+            self._go_to_line_dialog = None
+            current.destroy()
+            if not self._destroyed:
+                self.focus_editor()
+
+        def on_destroy(current) -> None:
+            if self._go_to_line_dialog is current:
+                self._go_to_line_dialog = None
+
+        dialog.connect("response", on_response)
+        dialog.connect("destroy", on_destroy)
+        self._go_to_line_dialog = dialog
+        dialog.present()
+        entry.grab_focus()
+        entry.select_region(0, -1)
+
+    def go_to_line(self, line: int) -> None:
+        if self._view_mode == "preview":
+            self._apply_view_mode("both", persist=False)
+        line_count = self._buffer.get_line_count()
+        target = max(1, min(line, line_count))
+        _found, target_iter = self._buffer.get_iter_at_line(target - 1)
+        self._buffer.place_cursor(target_iter)
+        self.focus_editor()
+        self.editor_view.scroll_mark_onscreen(self._buffer.get_insert())
+
+    def format_selection(self, kind: str) -> None:
+        text = self.get_text()
+        start, end = self._selection_or_cursor_offsets()
 
         markers = {
             "bold": ("**", "**"),

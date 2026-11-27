@@ -13,6 +13,9 @@ checklist, not a certification or a completed audit.
 - `Ctrl+F`, `Ctrl+G`, `Ctrl+Shift+G`, and `Ctrl+H` open find, find next,
   find previous, and replace. Escape closes the search bar and returns focus to
   the editor.
+- `Ctrl+L` opens Go to Line with numeric validation and returns focus to the
+  editor. Alt+Up/Down moves selected lines; Ctrl+Shift+D duplicates the line or
+  selection. All edits are available as single undo steps.
 - `Ctrl+Shift+R` formats the selection or the whole document. Large changes
   open a dialog with a diff preview; Cancel leaves the source untouched.
 - `Ctrl+,` opens Preferences; `Ctrl+?` opens the shortcuts dialog.

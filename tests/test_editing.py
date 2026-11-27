@@ -14,8 +14,11 @@ from src.editing import (
     complete_link,
     count_matches,
     delete_empty_pair,
+    duplicate_line_or_selection,
     format_code,
     format_inline,
+    move_lines,
+    parse_line_target,
     replace_all_text,
     skip_closing_pair,
     surround_selection,
@@ -183,6 +186,65 @@ assert (edit.selection_start, edit.selection_end) == (1, 2)
 edit = duplicate_line_or_selection("one\ntwo\nthree", 0, 8)
 assert apply("one\ntwo\nthree", edit) == "one\ntwo\none\ntwo\nthree"
 assert (edit.selection_start, edit.selection_end) == (0, 8)
+
+# Moving one line down and back restores the source and cursor in one edit each.
+source = "one\ntwo\nthree"
+edit = move_lines(source, 2, 2, 1)
+assert edit is not None
+moved = apply(source, edit)
+assert moved == "two\none\nthree"
+assert (edit.selection_start, edit.selection_end) == (6, 6)
+edit = move_lines(moved, 6, 6, -1)
+assert edit is not None
+assert apply(moved, edit) == source
+assert (edit.selection_start, edit.selection_end) == (2, 2)
+
+# Document boundaries are no-ops, and moving a final line transfers its EOL.
+assert move_lines(source, 2, 2, -1) is None
+assert move_lines(source, len(source), len(source), 1) is None
+assert move_lines("\n", 1, 1, -1) is None
+edit = move_lines("a\nb\n", 2, 2, 1)
+assert edit is not None
+assert apply("a\nb\n", edit) == "a\n\nb"
+assert (edit.selection_start, edit.selection_end) == (3, 3)
+edit = move_lines("a\n\nb", 3, 3, -1)
+assert edit is not None
+assert apply("a\n\nb", edit) == "a\nb\n"
+edit = move_lines("one\ntwo", 6, 6, -1)
+assert edit is not None
+assert apply("one\ntwo", edit) == "two\none"
+assert (edit.selection_start, edit.selection_end) == (2, 2)
+edit = move_lines("one\ntwo", 2, 2, 1)
+assert edit is not None
+assert apply("one\ntwo", edit) == "two\none"
+assert (edit.selection_start, edit.selection_end) == (6, 6)
+edit = move_lines("one\r\ntwo", 2, 2, 1)
+assert edit is not None
+assert apply("one\r\ntwo", edit) == "two\r\none"
+
+# Multi-line moves retain the selection, excluding a line at the end column 0.
+source = "one\ntwo\nthree\nfour"
+edit = move_lines(source, 1, 8, 1)
+assert edit is not None
+moved = apply(source, edit)
+assert moved == "three\none\ntwo\nfour"
+assert (edit.selection_start, edit.selection_end) == (7, 14)
+edit = move_lines(moved, 7, 14, -1)
+assert edit is not None
+assert apply(moved, edit) == source
+assert (edit.selection_start, edit.selection_end) == (1, 8)
+edit = move_lines("one\ntwo", 0, 4, 1)
+assert edit is not None
+assert apply("one\ntwo", edit) == "two\none"
+assert (edit.selection_start, edit.selection_end) == (4, 7)
+
+# Go-to-line input is a one-based ASCII integer; range clamping is a UI concern.
+assert parse_line_target("1") == 1
+assert parse_line_target(" 42\n") == 42
+assert parse_line_target("999999") == 999999
+assert parse_line_target("9" * 5000) is None
+for value in ("", " ", "0", "-1", "+1", "1.5", "one", "1 2", "１２"):
+    assert parse_line_target(value) is None, value
 
 # Search matching handles case, whole words, regex and empty patterns.
 assert count_matches("One one ONE", SearchQuery("one")) == 3

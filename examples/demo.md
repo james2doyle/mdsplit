@@ -13,7 +13,7 @@ A native GNOME Markdown editor with a live **GitHub-Flavored Markdown** preview.
 - [x] GFM tables, task lists, alerts, autolinks and footnotes
 - [x] Synchronized scrolling and three view modes
 - [x] Find, replace and Format Document
-- [x] Auto-pairing
+- [x] Auto-pairing, line moves, duplication and Go to Line
 - [x] Optional Vim keybindings for the editor and preview
 - [x] Autosave recovery, session restore and external-change warnings
 - [x] Standalone HTML and styled PDF export
@@ -65,6 +65,11 @@ Backspace between an empty pair removes both characters. Pairing stays out of
 code spans and fenced blocks; you can turn it off with **Auto-pair delimiters**
 in Preferences.
 
+Move the current line or selected lines with **Alt+Up** and **Alt+Down**.
+Duplicate a line or the exact selection with **Ctrl+Shift+D**. **Ctrl+L** opens
+Go to Line, which validates the entry, clamps large line numbers to the end of
+the document, and returns focus to the editor. Each edit is one undo step.
+
 ## Keyboard shortcuts
 
 | Shortcut | Action |
@@ -75,6 +80,9 @@ in Preferences.
 | Ctrl+Shift+S | Save As |
 | Ctrl+F | Find |
 | Ctrl+H | Replace |
+| Ctrl+L | Go to line |
+| Alt+Up / Alt+Down | Move current or selected lines |
+| Ctrl+Shift+D | Duplicate current line or selection |
 | Ctrl+Shift+R | Format document or selection |
 | F9 | Cycle view mode |
 | Ctrl+, | Preferences |

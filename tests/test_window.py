@@ -651,6 +651,122 @@ window.format_selection("blockquote")
 assert window.get_text() == "> one\n> two", window.get_text()
 window.destroy()
 
+# Line-operation actions preserve cursors/selections and undo in one step.
+from src.main import MdSplitApplication
+
+line_app = MdSplitApplication("line-actions")
+line_app.register(None)
+window = MdSplitWindow(application=line_app)
+window.present()
+while GLib.MainContext.default().iteration(False):
+    pass
+assert line_app.props.active_window is window
+window.editor_view.grab_focus()
+editor_has_focus = window.editor_view.has_focus
+# Parallel display tests can take the actual toplevel focus. Exercise the
+# action's editor-focus gate deterministically without synthesizing input.
+window.editor_view.has_focus = lambda: True
+source = "one\ntwo\nthree"
+window.set_text(source)
+window._buffer.place_cursor(window._buffer.get_iter_at_offset(2))
+line_app.lookup_action("move-lines-down").activate()
+assert window.get_text() == "two\none\nthree"
+insert = window._buffer.get_iter_at_mark(window._buffer.get_insert())
+assert insert.get_offset() == 6
+window._buffer.undo()
+assert window.get_text() == source
+line_app.lookup_action("move-lines-up").activate()
+assert window.get_text() == source
+
+# A four-line source exercises a multi-line move and restored selection.
+window.set_text("one\ntwo\nthree\nfour")
+window._buffer.select_range(
+    window._buffer.get_iter_at_offset(1),
+    window._buffer.get_iter_at_offset(8),
+)
+line_app.lookup_action("move-lines-down").activate()
+assert window.get_text() == "three\none\ntwo\nfour"
+bounds = window._buffer.get_selection_bounds()
+assert tuple(iterator.get_offset() for iterator in bounds) == (7, 14)
+window._buffer.undo()
+assert window.get_text() == "one\ntwo\nthree\nfour"
+bounds = window._buffer.get_selection_bounds()
+assert tuple(iterator.get_offset() for iterator in bounds) == (1, 8)
+
+window.set_text("one\ntwo")
+window._buffer.place_cursor(window._buffer.get_iter_at_offset(2))
+line_app.lookup_action("duplicate-line").activate()
+assert window.get_text() == "one\none\ntwo"
+window._buffer.undo()
+assert window.get_text() == "one\ntwo"
+window.set_text("abc")
+window._buffer.select_range(
+    window._buffer.get_iter_at_offset(1),
+    window._buffer.get_iter_at_offset(2),
+)
+line_app.lookup_action("duplicate-line").activate()
+assert window.get_text() == "abbc"
+bounds = window._buffer.get_selection_bounds()
+assert tuple(iterator.get_offset() for iterator in bounds) == (1, 2)
+window._buffer.undo()
+assert window.get_text() == "abc"
+
+# Go to Line keeps invalid input open, clamps large targets, and refocuses the
+# editor. Cancel closes the dialog without moving the cursor.
+window.editor_view.has_focus = editor_has_focus
+window.editor_view.grab_focus()
+window.set_text(source)
+window._buffer.place_cursor(window._buffer.get_start_iter())
+line_app.lookup_action("go-to-line").activate()
+dialog = window._go_to_line_dialog
+assert dialog is not None and dialog.get_modal()
+entry = next(widget for widget in walk(dialog) if isinstance(widget, Gtk.Entry))
+entry.set_text("0")
+dialog.response(Gtk.ResponseType.ACCEPT)
+assert window._go_to_line_dialog is dialog
+assert any(
+    isinstance(widget, Gtk.Label)
+    and widget.get_visible()
+    and widget.get_label().startswith("Enter a line number")
+    for widget in walk(dialog)
+)
+entry.set_text("999")
+dialog.response(Gtk.ResponseType.ACCEPT)
+while GLib.MainContext.default().iteration(False):
+    pass
+assert window._go_to_line_dialog is None
+insert = window._buffer.get_iter_at_mark(window._buffer.get_insert())
+assert insert.get_line() == 2
+assert insert.get_offset() == 8
+assert window.get_focus() is window.editor_view
+line_app.lookup_action("go-to-line").activate()
+dialog = window._go_to_line_dialog
+assert dialog is not None
+entry = next(widget for widget in walk(dialog) if isinstance(widget, Gtk.Entry))
+entry.set_text("2")
+dialog.response(Gtk.ResponseType.CANCEL)
+while GLib.MainContext.default().iteration(False):
+    pass
+assert window._go_to_line_dialog is None
+insert = window._buffer.get_iter_at_mark(window._buffer.get_insert())
+assert insert.get_offset() == 8
+assert window.get_focus() is window.editor_view
+window.go_to_line(0)
+insert = window._buffer.get_iter_at_mark(window._buffer.get_insert())
+assert insert.get_line() == 0
+
+# Menu actions do not edit the buffer while another widget owns focus.
+window.set_text("one\ntwo")
+window._buffer.place_cursor(window._buffer.get_iter_at_offset(2))
+window.editor_view.has_focus = lambda: False
+line_app.lookup_action("duplicate-line").activate()
+assert window.get_text() == "one\ntwo"
+window.editor_view.has_focus = editor_has_focus
+window._force_close = True
+window.destroy()
+while GLib.MainContext.default().iteration(False):
+    pass
+
 # Export overwrites are confirmed, and a missing file is accepted directly.
 import tempfile
 from pathlib import Path
