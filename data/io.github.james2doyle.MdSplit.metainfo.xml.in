@@ -24,7 +24,7 @@
 
   <screenshots>
     <screenshot type="default">
-      <image type="source" width="1150" height="770">https://raw.githubusercontent.com/james2doyle/mdsplit/v1.7.3/docs/screenshot.png</image>
+      <image type="source" width="1150" height="770">https://raw.githubusercontent.com/james2doyle/mdsplit/v1.8.0/docs/screenshot.png</image>
       <caption>Markdown source and rendered preview side by side</caption>
     </screenshot>
   </screenshots>
@@ -70,6 +70,17 @@
   </branding>
 
   <releases>
+    <release version="1.8.0" date="2026-11-27">
+      <description translate="no">
+        <p>Native preview code highlighting and quieter frame diagnostics.</p>
+        <ul>
+          <li>Highlight fenced code blocks with GtkSourceView language definitions and matching Adwaita light and dark schemes.</li>
+          <li>Support common language aliases and safe plain-text fallbacks for unknown languages, unsupported GtkSourceView versions, and oversized blocks.</li>
+          <li>Keep code selectable and copyable while preserving the preview's native GTK widget rendering.</li>
+          <li>Recognize GDK discarded-frame presentation warnings as known diagnostics.</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.7.3" date="2026-11-27">
       <description translate="no">
         <p>Launcher hotfix for Flatpak running inside AppImage-hosted terminals.</p>
