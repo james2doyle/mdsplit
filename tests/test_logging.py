@@ -70,6 +70,13 @@ assert is_known_warning(
     "values: presentation time is 16.650ms off from expected",
 )
 
+# The compositor can report a frame after GDK discarded it during rapid
+# layout changes, such as switching which editor pane is visible.
+assert is_known_warning(
+    "Gdk",
+    "gdk_frame_timings_presented() called on discarded frame.",
+)
+
 # libenchant warns for provider plugins that are not installed. Other
 # providers (for example hunspell) still supply dictionaries.
 assert is_known_warning(
@@ -127,6 +134,15 @@ assert not is_known_warning(
     "values: presentation time is soon",
 )
 assert not is_known_warning(
+    "Gdk", "gdk_frame_timings_submitted() called on discarded frame."
+)
+assert not is_known_warning(
+    "Gdk", "gdk_frame_timings_presented() called on skipped frame."
+)
+assert not is_known_warning(
+    "Gtk", "gdk_frame_timings_presented() called on discarded frame."
+)
+assert not is_known_warning(
     "Gtk",
     "Duplicate call to gdk_frame_timings_presented() with different "
     "values: presentation time is 50.5ms off from expected",
@@ -177,6 +193,12 @@ try:
         GLib.LogLevelFlags.LEVEL_WARNING,
         "Duplicate call to gdk_frame_timings_presented() with different "
         "values: presentation time is 50.5ms off from expected",
+    )
+    assert calls == []
+    _on_known_warning(
+        "Gdk",
+        GLib.LogLevelFlags.LEVEL_WARNING,
+        "gdk_frame_timings_presented() called on discarded frame.",
     )
     assert calls == []
     _on_known_warning(

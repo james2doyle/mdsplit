@@ -2,7 +2,7 @@
 
 """Targeted filtering for known benign GTK, GDK and libenchant warnings.
 
-Five upstream warnings are noisy but do not indicate a document or
+Six upstream warnings are noisy but do not indicate a document or
 data-loss problem:
 
 - ``GtkTextView`` updates scrollbar adjustments during snapshot
@@ -16,6 +16,9 @@ data-loss problem:
 - A compositor can report the same presented frame twice with slightly
   different timestamps, producing a ``Duplicate call to
   gdk_frame_timings_presented()`` warning.
+- A compositor can report presentation after GDK discarded a frame during
+  rapid layout changes, producing a ``gdk_frame_timings_presented() called
+  on discarded frame`` warning.
 - libenchant warns about provider plugins that are not installed while it
   initializes the spelling backend. The dictionaries that are available still
   load through their working plugin.
@@ -53,6 +56,9 @@ _GDK_PRESENTED_WARNING = re.compile(
     r"^Duplicate call to gdk_frame_timings_presented\(\) with different "
     r"values: presentation time is -?\d+(?:\.\d+)?ms off from expected$"
 )
+_GDK_DISCARDED_WARNING = re.compile(
+    r"^gdk_frame_timings_presented\(\) called on discarded frame\.$"
+)
 _ENCHANT_PLUGIN_WARNING = re.compile(
     r"^broker\.vala:\d+: Error loading plugin: "
     r"lib[^:\s]+\.so(?:\.\d+)*: "
@@ -73,6 +79,7 @@ def is_known_warning(domain: str | None, message: str | None) -> bool:
         return bool(
             _GDK_THROTTLING_WARNING.match(message)
             or _GDK_PRESENTED_WARNING.match(message)
+            or _GDK_DISCARDED_WARNING.match(message)
         )
     if domain == "libenchant":
         return bool(_ENCHANT_PLUGIN_WARNING.match(message))
