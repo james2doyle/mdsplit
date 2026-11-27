@@ -24,7 +24,7 @@
 
   <screenshots>
     <screenshot type="default">
-      <image type="source" width="1150" height="770">https://raw.githubusercontent.com/james2doyle/mdsplit/v1.7.1/docs/screenshot.png</image>
+      <image type="source" width="1150" height="770">https://raw.githubusercontent.com/james2doyle/mdsplit/v1.7.2/docs/screenshot.png</image>
       <caption>Markdown source and rendered preview side by side</caption>
     </screenshot>
   </screenshots>
@@ -70,6 +70,16 @@
   </branding>
 
   <releases>
+    <release version="1.7.2" date="2026-11-27">
+      <description translate="no">
+        <p>Launcher compatibility hotfix for AppImage, extracted AppDir, and nested Flatpak environments.</p>
+        <ul>
+          <li>Use AppDir resources only for a real AppImage or when the expected resource file exists in an extracted AppDir.</li>
+          <li>Ignore unrelated host APPDIR values so Flatpak launches from AppImage-hosted terminals resolve the correct resources.</li>
+          <li>Verify direct AppImage, extracted AppDir, and nested Flatpak execution with regression and smoke tests.</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.7.1" date="2026-11-27">
       <description translate="no">
         <p>Flatpak launcher hotfix for AppImage-hosted terminals.</p>
